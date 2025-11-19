@@ -25,7 +25,7 @@ app.use("/api/v1/deals", dealsRouter);
 // 1. DB 연결 테스트
 connectDB().then(() => {
   // 2. 연결 성공 시 서버 시작
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Node.js API Server running on port ${PORT}`);
     console.log(`🔗 API URL: http://localhost:${PORT}/api/v1/deals`);
   });
