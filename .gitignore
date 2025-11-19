@@ -1,0 +1,15 @@
+# Dependency directories
+/node_modules
+/game-deal-frontend/node_modules
+/game-deal-api-service/node_modules
+/game-deal-crawler-service/.venv 
+/game-deal-frontend/.next/ # Next.js 빌드 캐시
+
+# Environment files (보안상 매우 중요)
+.env.local
+/game-deal-api-service/.env
+
+# System and Log files
+npm-debug.log*
+yarn-debug.log*
+.DS_Store
