@@ -31,6 +31,10 @@ const Deal = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
+    image_url: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     end_date: {
       type: DataTypes.DATE, // PostgreSQL의 DateTime과 매핑
       allowNull: true,

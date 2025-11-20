@@ -205,6 +205,21 @@ def extract_raw_data(product: dict):
     if not title or not product_id:
         return None
     
+    image_url = None
+    images = localized_props.get('Image', [])
+    
+    for img in images:
+        if img.get('ImagePurpose') in ['BoxArt', 'Poster']:
+            image_url = img.get('Url')
+            if image_url and image_url.startswith('//'):
+                image_url = f"https:{image_url}"
+            break
+        
+        if not image_url and images:
+            image_url = images[0].get('Url')
+            if image_url and image_url.startswith('//'):
+                image_url = f"https:{image_url}"
+    
     safe_slug = url_slug if url_slug else "unknown"
     final_url = f"https://www.xbox.com/ko-KR/games/store/{safe_slug}/{product_id}"
     regular_price = get_ms_store_price(product)
@@ -242,6 +257,7 @@ def extract_raw_data(product: dict):
         "title": title,
         "product_id": product_id,
         "url": final_url,
+        "image_url": image_url,
         "price": regular_price,
         "platforms": platforms,
         "plans": plans,
@@ -273,6 +289,9 @@ def merge_xbox_deals(products: List[dict]) -> List[dict]:
                 existing['is_day_one'] = True
             if not existing['removal_date'] and raw['removal_date']:
                 existing['removal_date'] = raw['removal_date']
+                
+            if not existing['image_url'] and raw['image_url']:
+                existing['image_url'] = raw['image_url']
 
     final_list = []
     now_utc = datetime.now(timezone.utc)
@@ -295,6 +314,7 @@ def merge_xbox_deals(products: List[dict]) -> List[dict]:
                 "platform": platform_str,
                 "title": title,
                 "url": data['url'],
+                "image_url": data['image_url'],
                 "regular_price": data['price'],
                 "sale_price": 0.0,
                 "discount_rate": 100,

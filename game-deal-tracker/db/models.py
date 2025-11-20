@@ -18,6 +18,7 @@ class Deal(Base):
     sale_price = Column(Float)
     discount_rate = Column(Integer)
     deal_type = Column(String, nullable=False)
+    image_url = Column(String, nullable=True)
     end_date = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
     

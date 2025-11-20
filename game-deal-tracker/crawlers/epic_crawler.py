@@ -55,6 +55,19 @@ def extract_deal_info(element):
 
     if not url_slug or url_slug.startswith('[]'):
         return None
+    
+    image_url = None
+    key_images = element.get('keyImages', [])
+    
+    for img in key_images:
+        if img.get('type') == 'Thumbnail':
+            image_url = img.get('url')
+            break
+        elif img.get('type') == 'OfferImageWide' and not image_url:
+            image_url = img.get('url')
+            
+    if not image_url and key_images:
+        image_url = key_images[0].get('url')
         
     end_date = None
     
@@ -98,6 +111,7 @@ def extract_deal_info(element):
         "platform": "Epic Games Store",
         "title": title,
         "url": f"https://store.epicgames.com/ko/p/{url_slug}",
+        "image_url": image_url,
         "regular_price": regular_price,
         "sale_price": 0.0,
         "discount_rate": 100,
