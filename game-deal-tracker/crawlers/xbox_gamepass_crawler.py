@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 from db.models import Deal, XboxMetadata 
 from typing import List, Dict, Set, Tuple
 
-# 🚨 1단계 API: Game Pass ID 목록
+# 1단계 API: Game Pass ID 목록
 XBOX_ID_URL = "https://catalog.gamepass.com/sigls/v2?id=29a81209-df6f-41fd-a528-2ae6b91f719c&language=ko-kr&market=KR"
-# 🚨 2단계 API: 상세 정보
+# 2단계 API: 상세 정보
 XBOX_DETAIL_URL = "https://displaycatalog.mp.microsoft.com/v7.0/products?bigIds={ids}&market=KR&languages=ko-kr"
 
 HEADERS = {
@@ -85,7 +85,7 @@ def get_ms_store_price(product: dict) -> float:
         pass
     return 0.0
 
-# --- 🎮 플랫폼 및 요금제 분석 (로직 강화됨) ---
+# --- 🎮 플랫폼 및 요금제 분석 ---
 def analyze_platform_and_tier(product: dict) -> Tuple[Set[str], Set[str]]:
     platforms = set()
     plans = set()
@@ -97,11 +97,10 @@ def analyze_platform_and_tier(product: dict) -> Tuple[Set[str], Set[str]]:
     if not allowed_raw:
         allowed_raw = product.get('AllowedPlatforms', [])
     
-    # 2. 🚨 [추가] SKU 내부의 조건 확인 (최상위 정보 누락 대비)
+    # 2. SKU 내부의 조건 확인
     if not allowed_raw:
         skus = product.get('DisplaySkuAvailabilities', [])
         for sku in skus:
-            # SKU -> Availabilities -> Conditions -> ClientConditions -> AllowedPlatforms
             avails = sku.get('Availabilities', [])
             for avail in avails:
                 conditions = avail.get('Conditions', {}).get('ClientConditions', {})
@@ -112,14 +111,12 @@ def analyze_platform_and_tier(product: dict) -> Tuple[Set[str], Set[str]]:
     # 리스트 정리
     allowed_str = []
     for item in allowed_raw:
-        if isinstance(item, dict): # 가끔 dict 형태로 올 때가 있음
-            # { 'PlatformName': 'Windows.Desktop' } 형태 대비
+        if isinstance(item, dict): 
             val = item.get('PlatformName') or item.get('Name')
             if val: allowed_str.append(str(val).lower())
         else:
             allowed_str.append(str(item).lower())
             
-    # 중복 제거
     allowed_str = list(set(allowed_str))
 
     # --- 플랫폼 판별 ---
@@ -127,18 +124,18 @@ def analyze_platform_and_tier(product: dict) -> Tuple[Set[str], Set[str]]:
     is_console = False
     is_cloud = False
 
-    # PC 판별
+    # PC
     if props.get('IsGamePassPC') or any(x in p for p in allowed_str for x in ['windows', 'desktop', 'pc']):
         is_pc = True
         platforms.add("PC")
 
-    # Console 판별 (키워드 확장: gen9, gen8 등)
+    # Console
     console_keywords = ['xbox', 'console', 'durango', 'scarlett', 'gen9', 'gen8', 'one']
     if props.get('IsGamePassConsole') or any(x in p for p in allowed_str for x in console_keywords):
         is_console = True
         platforms.add("Console")
 
-    # Cloud 판별
+    # Cloud
     if props.get('IsGamePassCloud') or props.get('XboxCloudGaming'):
         is_cloud = True
     elif any('cloud' in p for p in allowed_str):
@@ -154,37 +151,17 @@ def analyze_platform_and_tier(product: dict) -> Tuple[Set[str], Set[str]]:
     if is_cloud:
         platforms.add("Cloud")
 
-    # 🚨 [보정] 만약 플랫폼이 아무것도 감지되지 않았는데 Category가 'Game'이라면?
-    # 보통 Console일 확률이 높지만, 데이터 오염 방지를 위해 'Unknown'으로 두거나
-    # ProductTitle에 'Windows'가 없으면 Console로 추정하는 등 휴리스틱 적용 가능.
-    # 여기서는 안전하게 최소한의 보정만 수행.
-    if not platforms and product.get('ProductKind') == 'Game':
-        # 아무 정보도 없으면 보통 구형 콘솔 게임일 수 있음
-        pass
-
     # --- 요금제(Tier) 매핑 ---
-    # 요청 사항: Essential, Premium, Ultimate, PC
-    
-    # 1. PC -> PC, Ultimate
     if is_pc:
         plans.add("PC")
         plans.add("Ultimate")
-
-    # 2. Console -> Premium, Ultimate
     if is_console:
         plans.add("Premium")
         plans.add("Ultimate")
-
-    # 3. Cloud -> Ultimate
     if is_cloud:
         plans.add("Ultimate")
-
-    # 4. Essential (Core)
-    # 명시적 플래그가 있거나, 'Gold' 관련 속성이 있는 경우
     if props.get('IsGamePassCore'):
         plans.add("Essential")
-
-    # 5. 예외 처리: 아무 Plan도 없다면 (데이터 누락) -> Ultimate (가장 포괄적)
     if not plans and (is_pc or is_console or is_cloud):
         plans.add("Ultimate")
 
@@ -205,21 +182,6 @@ def extract_raw_data(product: dict):
     if not title or not product_id:
         return None
     
-    image_url = None
-    images = localized_props.get('Image', [])
-    
-    for img in images:
-        if img.get('ImagePurpose') in ['BoxArt', 'Poster']:
-            image_url = img.get('Url')
-            if image_url and image_url.startswith('//'):
-                image_url = f"https:{image_url}"
-            break
-        
-        if not image_url and images:
-            image_url = images[0].get('Url')
-            if image_url and image_url.startswith('//'):
-                image_url = f"https:{image_url}"
-    
     safe_slug = url_slug if url_slug else "unknown"
     final_url = f"https://www.xbox.com/ko-KR/games/store/{safe_slug}/{product_id}"
     regular_price = get_ms_store_price(product)
@@ -227,6 +189,30 @@ def extract_raw_data(product: dict):
     # 플랫폼 및 요금제 분석
     platforms, plans = analyze_platform_and_tier(product)
     
+    # 🆕 [추가] 이미지 URL 추출 로직
+    image_url = None
+    images = localized_props.get('Images', [])
+    
+    # BoxArt > Poster > SuperHeroArt 순으로 우선순위 검색
+    target_purposes = ['BoxArt', 'Poster', 'SuperHeroArt']
+    
+    for purpose in target_purposes:
+        for img in images:
+            if img.get('ImagePurpose') == purpose:
+                image_url = img.get('Uri')
+                break
+        if image_url:
+            break
+            
+    # 못 찾았으면 아무거나 첫 번째 이미지
+    if not image_url and images:
+        image_url = images[0].get('Uri')
+    
+    # Xbox API는 //로 시작하는 URL을 줄 때가 많음 -> https: 붙여주기
+    if image_url and image_url.startswith('//'):
+        image_url = f"https:{image_url}"
+
+    # 날짜 처리
     is_day_one = False
     removal_date = None
     
@@ -257,12 +243,12 @@ def extract_raw_data(product: dict):
         "title": title,
         "product_id": product_id,
         "url": final_url,
-        "image_url": image_url,
         "price": regular_price,
         "platforms": platforms,
         "plans": plans,
         "is_day_one": is_day_one,
-        "removal_date": removal_date
+        "removal_date": removal_date,
+        "image_url": image_url # 🆕 반환 데이터에 포함
     }
 
 # --- 4. 데이터 병합 (Merge Logic) ---
@@ -280,8 +266,8 @@ def merge_xbox_deals(products: List[dict]) -> List[dict]:
             merged_data[title] = raw
         else:
             existing = merged_data[title]
-            existing['platforms'].update(raw['platforms']) # 플랫폼 합집합
-            existing['plans'].update(raw['plans'])         # 요금제 합집합
+            existing['platforms'].update(raw['platforms']) 
+            existing['plans'].update(raw['plans'])         
             
             if raw['price'] > existing['price']:
                 existing['price'] = raw['price']
@@ -289,19 +275,17 @@ def merge_xbox_deals(products: List[dict]) -> List[dict]:
                 existing['is_day_one'] = True
             if not existing['removal_date'] and raw['removal_date']:
                 existing['removal_date'] = raw['removal_date']
-                
-            if not existing['image_url'] and raw['image_url']:
+            # 🆕 더 나은 이미지가 있으면 업데이트 (기존이 없거나 비었을 때)
+            if not existing.get('image_url') and raw.get('image_url'):
                 existing['image_url'] = raw['image_url']
 
     final_list = []
     now_utc = datetime.now(timezone.utc)
 
     for title, data in merged_data.items():
-        # 플랫폼 목록 생성
         sorted_platforms = sorted(list(data['platforms']))
         platform_str = ", ".join(sorted_platforms) if sorted_platforms else "Xbox"
 
-        # 요금제 목록 생성
         sorted_plans = sorted(list(data['plans']))
         tier_str = ", ".join(sorted_plans) if sorted_plans else "Ultimate"
 
@@ -314,7 +298,7 @@ def merge_xbox_deals(products: List[dict]) -> List[dict]:
                 "platform": platform_str,
                 "title": title,
                 "url": data['url'],
-                "image_url": data['image_url'],
+                "image_url": data['image_url'], # 🆕 Core Deal 모델에 전달
                 "regular_price": data['price'],
                 "sale_price": 0.0,
                 "discount_rate": 100,
@@ -363,6 +347,8 @@ def save_xbox_deals(db: Session):
                 existing_deal.end_date = core_deal['end_date']
                 existing_deal.is_active = core_deal['is_active']
                 existing_deal.url = core_deal['url']
+                # 🆕 업데이트 시 이미지 URL도 갱신
+                existing_deal.image_url = core_deal['image_url']
                 
                 existing_meta = db.query(XboxMetadata).filter_by(deal_id=existing_deal.id).first()
                 if existing_meta:
