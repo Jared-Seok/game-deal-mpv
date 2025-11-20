@@ -1,14 +1,14 @@
-# crawlers/xbox_crawler.py
+# crawlers/xbox_gamepass_crawler.py
 
 import requests
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
-from db.models import Deal, XboxMetadata # Core Deal 및 메타데이터 모델
-from typing import List
+from db.models import Deal, XboxMetadata 
+from typing import List, Dict, Set, Tuple
 
-# 🚨 1단계 API: Game Pass ID 목록 가져오기 (전체 카탈로그 ID)
+# 🚨 1단계 API: Game Pass ID 목록
 XBOX_ID_URL = "https://catalog.gamepass.com/sigls/v2?id=29a81209-df6f-41fd-a528-2ae6b91f719c&language=ko-kr&market=KR"
-# 🚨 2단계 API: 상세 정보 가져오기 (bigIds={ids} 부분에 ID를 삽입해야 함)
+# 🚨 2단계 API: 상세 정보
 XBOX_DETAIL_URL = "https://displaycatalog.mp.microsoft.com/v7.0/products?bigIds={ids}&market=KR&languages=ko-kr"
 
 HEADERS = {
@@ -16,22 +16,18 @@ HEADERS = {
     'Accept': 'application/json',
 }
 
-# --- 1단계: ID 목록 가져오기 (안정성 강화) ---
+# --- 1. ID 목록 가져오기 ---
 def get_product_ids() -> List[str]:
-    """1단계: Game Pass 카탈로그의 모든 제품 ID를 가져옵니다. (안정성 강화)"""
     try:
         response = requests.get(XBOX_ID_URL, headers=HEADERS)
         response.raise_for_status()
         data = response.json()
         
         product_ids = []
-
-        # 데이터 타입 안정성 확보
         if isinstance(data, list):
             for item in data:
                 if isinstance(item, dict) and item.get('id'):
                     product_ids.append(item['id'])
-        
         elif isinstance(data, dict):
             content_items = data.get('contentItems', [])
             if isinstance(content_items, list):
@@ -39,24 +35,15 @@ def get_product_ids() -> List[str]:
                     if isinstance(item, dict) and item.get('id'):
                         product_ids.append(item['id'])
         
-        if product_ids:
-            return product_ids
-
-        print("Warning: Could not parse product IDs from XBOX_ID_URL.")
-        return []
-        
-    except requests.exceptions.RequestException as e:
+        return product_ids
+    except Exception as e:
         print(f"ERROR: Xbox ID 목록 요청 실패: {e}")
         return []
-    except Exception as e:
-        print(f"ERROR during ID list processing: {e}")
-        return []
 
-# --- 2단계: 상세 정보 가져오기 (이전 코드와 동일하게 유지) ---
+# --- 2. 상세 정보 가져오기 ---
 def fetch_xbox_details(product_ids: List[str]) -> List[dict]:
-    """2단계: ID 목록을 기반으로 상세 제품 정보를 가져옵니다."""
     details_list = []
-    chunk_size = 50
+    chunk_size = 40 
     id_chunks = [product_ids[i:i + chunk_size] for i in range(0, len(product_ids), chunk_size)]
 
     for chunk in id_chunks:
@@ -69,69 +56,177 @@ def fetch_xbox_details(product_ids: List[str]) -> List[dict]:
             
             data = response.json()
             products = data.get('Products', [])
-            
-            for product in products:
-                details_list.append(product)
+            details_list.extend(products)
                 
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             print(f"ERROR: 상세 정보 요청 실패 (Chunk): {e}")
             
     print(f"Successfully fetched details for {len(details_list)} products.")
     return details_list
 
-# --- 3단계: 데이터 추출 및 가공 ---
-def extract_deal_info(product: dict):
-    """상세 제품 JSON에서 Core Deal 및 Xbox Metadata 정보를 추출합니다."""
+# --- 🔍 가격 정보 추출 ---
+def get_ms_store_price(product: dict) -> float:
+    try:
+        skus = product.get('DisplaySkuAvailabilities', [])
+        if skus:
+            for sku in skus:
+                availabilities = sku.get('Availabilities', [])
+                for avail in availabilities:
+                    order_mgmt = avail.get('OrderManagementData', {})
+                    price_data = order_mgmt.get('Price', {})
+                    msrp = price_data.get('MSRP')
+                    if msrp is not None:
+                        return float(msrp)
+        
+        orig_price = product.get('Properties', {}).get('OriginalPrice')
+        if orig_price:
+            return float(orig_price)
+    except Exception:
+        pass
+    return 0.0
+
+# --- 🎮 플랫폼 및 요금제 분석 (로직 강화됨) ---
+def analyze_platform_and_tier(product: dict) -> Tuple[Set[str], Set[str]]:
+    platforms = set()
+    plans = set()
     
+    props = product.get('Properties', {})
+    
+    # 1. 기본 AllowedPlatforms 확인
+    allowed_raw = props.get('AllowedPlatforms', [])
+    if not allowed_raw:
+        allowed_raw = product.get('AllowedPlatforms', [])
+    
+    # 2. 🚨 [추가] SKU 내부의 조건 확인 (최상위 정보 누락 대비)
+    if not allowed_raw:
+        skus = product.get('DisplaySkuAvailabilities', [])
+        for sku in skus:
+            # SKU -> Availabilities -> Conditions -> ClientConditions -> AllowedPlatforms
+            avails = sku.get('Availabilities', [])
+            for avail in avails:
+                conditions = avail.get('Conditions', {}).get('ClientConditions', {})
+                sku_allowed = conditions.get('AllowedPlatforms')
+                if sku_allowed:
+                    allowed_raw.extend(sku_allowed)
+
+    # 리스트 정리
+    allowed_str = []
+    for item in allowed_raw:
+        if isinstance(item, dict): # 가끔 dict 형태로 올 때가 있음
+            # { 'PlatformName': 'Windows.Desktop' } 형태 대비
+            val = item.get('PlatformName') or item.get('Name')
+            if val: allowed_str.append(str(val).lower())
+        else:
+            allowed_str.append(str(item).lower())
+            
+    # 중복 제거
+    allowed_str = list(set(allowed_str))
+
+    # --- 플랫폼 판별 ---
+    is_pc = False
+    is_console = False
+    is_cloud = False
+
+    # PC 판별
+    if props.get('IsGamePassPC') or any(x in p for p in allowed_str for x in ['windows', 'desktop', 'pc']):
+        is_pc = True
+        platforms.add("PC")
+
+    # Console 판별 (키워드 확장: gen9, gen8 등)
+    console_keywords = ['xbox', 'console', 'durango', 'scarlett', 'gen9', 'gen8', 'one']
+    if props.get('IsGamePassConsole') or any(x in p for p in allowed_str for x in console_keywords):
+        is_console = True
+        platforms.add("Console")
+
+    # Cloud 판별
+    if props.get('IsGamePassCloud') or props.get('XboxCloudGaming'):
+        is_cloud = True
+    elif any('cloud' in p for p in allowed_str):
+        is_cloud = True
+    else:
+        attrs = props.get('Attributes', [])
+        if isinstance(attrs, list):
+            for attr in attrs:
+                if isinstance(attr, dict) and 'cloud' in str(attr.get('Name', '')).lower():
+                    is_cloud = True
+                    break
+    
+    if is_cloud:
+        platforms.add("Cloud")
+
+    # 🚨 [보정] 만약 플랫폼이 아무것도 감지되지 않았는데 Category가 'Game'이라면?
+    # 보통 Console일 확률이 높지만, 데이터 오염 방지를 위해 'Unknown'으로 두거나
+    # ProductTitle에 'Windows'가 없으면 Console로 추정하는 등 휴리스틱 적용 가능.
+    # 여기서는 안전하게 최소한의 보정만 수행.
+    if not platforms and product.get('ProductKind') == 'Game':
+        # 아무 정보도 없으면 보통 구형 콘솔 게임일 수 있음
+        pass
+
+    # --- 요금제(Tier) 매핑 ---
+    # 요청 사항: Essential, Premium, Ultimate, PC
+    
+    # 1. PC -> PC, Ultimate
+    if is_pc:
+        plans.add("PC")
+        plans.add("Ultimate")
+
+    # 2. Console -> Premium, Ultimate
+    if is_console:
+        plans.add("Premium")
+        plans.add("Ultimate")
+
+    # 3. Cloud -> Ultimate
+    if is_cloud:
+        plans.add("Ultimate")
+
+    # 4. Essential (Core)
+    # 명시적 플래그가 있거나, 'Gold' 관련 속성이 있는 경우
+    if props.get('IsGamePassCore'):
+        plans.add("Essential")
+
+    # 5. 예외 처리: 아무 Plan도 없다면 (데이터 누락) -> Ultimate (가장 포괄적)
+    if not plans and (is_pc or is_console or is_cloud):
+        plans.add("Ultimate")
+
+    return platforms, plans
+
+# --- 3. 데이터 추출 (병합 전 단계) ---
+def extract_raw_data(product: dict):
     if not isinstance(product, dict):
         return None
         
     product_id = product.get('ProductId')
-    
-    # 🚨 리스트에서 첫 번째 요소를 안전하게 추출
-    localized_props = product.get('LocalizedProperties')
-    localized_props = localized_props[0] if localized_props and isinstance(localized_props, list) else {}
-
-    market_props = product.get('MarketProperties')
-    market_props = market_props[0] if market_props and isinstance(market_props, list) else {}
+    localized_props = product.get('LocalizedProperties', [{}])[0]
+    market_props = product.get('MarketProperties', [{}])[0]
 
     title = localized_props.get('ProductTitle')
     url_slug = localized_props.get('ProductUrl')
     
     if not title or not product_id:
-        # 🚨 디버그 로그 추가
-        print(f"DEBUG SKIP: Product ID {product_id} skipped (Missing Title)")
         return None
-        
-    final_url = f"https://www.xbox.com/ko-KR/games/store/{url_slug}/"
-    regular_price = product.get('Properties', {}).get('OriginalPrice', 0.0)
     
-    # --- Game Pass Metadata 추출 로직 ---
+    safe_slug = url_slug if url_slug else "unknown"
+    final_url = f"https://www.xbox.com/ko-KR/games/store/{safe_slug}/{product_id}"
+    regular_price = get_ms_store_price(product)
+    
+    # 플랫폼 및 요금제 분석
+    platforms, plans = analyze_platform_and_tier(product)
+    
     is_day_one = False
-    tiers = []
     removal_date = None
     
-    # Day 1 계산 (출시일 vs Game Pass 시작일)
     release_date_str = localized_props.get('ReleaseDate')
     start_date_str = localized_props.get('OriginalReleaseDate') 
 
     if release_date_str and start_date_str:
         try:
-            release_date = datetime.fromisoformat(release_date_str.replace('Z', '+00:00')).date()
-            start_date = datetime.fromisoformat(start_date_str.replace('Z', '+00:00')).date()
-            
-            if release_date == start_date:
+            r_date = datetime.fromisoformat(release_date_str.replace('Z', '+00:00')).date()
+            s_date = datetime.fromisoformat(start_date_str.replace('Z', '+00:00')).date()
+            if r_date == s_date:
                 is_day_one = True
         except ValueError:
             pass
-            
-    # 티어 확인
-    if product.get('Properties', {}).get('IsGamePassConsole'):
-        tiers.append("Console")
-    if product.get('Properties', {}).get('IsGamePassPC'):
-        tiers.append("PC")
 
-    # 만료일 확인
     usage_data = market_props.get('UsageData', [])
     for usage in usage_data:
         if usage.get('UsageType') == 'Subscription':
@@ -143,106 +238,139 @@ def extract_deal_info(product: dict):
                 except ValueError:
                     pass
 
-    game_pass_tier = ", ".join(tiers)
-    
-    # 🚨 [핵심 수정]: 1단계 API 목록을 신뢰하여 Game Pass 상태는 무조건 True로 설정
-    is_game_pass_status = True
-
-    # Core Deal 필드 설정
-    now_utc = datetime.now(timezone.utc)
-    is_active_status = True
-    
-    if removal_date:
-        is_active_status = removal_date.astimezone(timezone.utc) > now_utc
-    
     return {
-        "core_deal": {
-            "platform": "Xbox Game Pass",
-            "title": title,
-            "url": final_url,
-            "regular_price": regular_price,
-            "sale_price": 0.0,
-            "discount_rate": 100, 
-            "deal_type": "GamePass",
-            "end_date": removal_date, 
-            "is_active": is_active_status,
-        },
-        "xbox_meta": {
-            "is_game_pass": is_game_pass_status,
-            "is_day_one": is_day_one,
-            "game_pass_tier": game_pass_tier,
-            "removal_date": removal_date,
-        }
+        "title": title,
+        "product_id": product_id,
+        "url": final_url,
+        "price": regular_price,
+        "platforms": platforms,
+        "plans": plans,
+        "is_day_one": is_day_one,
+        "removal_date": removal_date
     }
 
-# --- 최종 통합 함수 (DB 저장) ---
-def fetch_xbox_deals_integrated():
+# --- 4. 데이터 병합 (Merge Logic) ---
+def merge_xbox_deals(products: List[dict]) -> List[dict]:
+    merged_data: Dict[str, dict] = {}
+
+    for product in products:
+        raw = extract_raw_data(product)
+        if not raw:
+            continue
+            
+        title = raw['title']
+        
+        if title not in merged_data:
+            merged_data[title] = raw
+        else:
+            existing = merged_data[title]
+            existing['platforms'].update(raw['platforms']) # 플랫폼 합집합
+            existing['plans'].update(raw['plans'])         # 요금제 합집합
+            
+            if raw['price'] > existing['price']:
+                existing['price'] = raw['price']
+            if raw['is_day_one']:
+                existing['is_day_one'] = True
+            if not existing['removal_date'] and raw['removal_date']:
+                existing['removal_date'] = raw['removal_date']
+
+    final_list = []
+    now_utc = datetime.now(timezone.utc)
+
+    for title, data in merged_data.items():
+        # 플랫폼 목록 생성
+        sorted_platforms = sorted(list(data['platforms']))
+        platform_str = ", ".join(sorted_platforms) if sorted_platforms else "Xbox"
+
+        # 요금제 목록 생성
+        sorted_plans = sorted(list(data['plans']))
+        tier_str = ", ".join(sorted_plans) if sorted_plans else "Ultimate"
+
+        is_active = True
+        if data['removal_date']:
+            is_active = data['removal_date'].astimezone(timezone.utc) > now_utc
+
+        final_list.append({
+            "core_deal": {
+                "platform": platform_str,
+                "title": title,
+                "url": data['url'],
+                "regular_price": data['price'],
+                "sale_price": 0.0,
+                "discount_rate": 100,
+                "deal_type": "GamePass",
+                "end_date": data['removal_date'],
+                "is_active": is_active
+            },
+            "xbox_meta": {
+                "is_game_pass": True,
+                "is_day_one": data['is_day_one'],
+                "game_pass_tier": tier_str,
+                "removal_date": data['removal_date']
+            }
+        })
+        
+    return final_list
+
+# --- 5. DB 저장 함수 ---
+def save_xbox_deals(db: Session):
     product_ids = get_product_ids()
     if not product_ids:
-        return []
-    
-    products = fetch_xbox_details(product_ids)
-    
-    deals = []
-    for product in products:
-        deal = extract_deal_info(product)
-        if deal: # 🚨 None이 아닌 유효한 딜만 추가
-            deals.append(deal)
-            
-    return deals
-
-def save_xbox_deals(db: Session):
-    """수집된 Xbox Deals를 Core Deal 테이블 및 Xbox Metadata 테이블에 저장합니다."""
-    deals_data_structured = fetch_xbox_deals_integrated()
-    count_saved = 0
-    count_skipped = 0
-    
-    if not deals_data_structured:
-        print("No deals found from Xbox Game Pass API.")
+        print("No products found.")
         return 0
+        
+    products_raw = fetch_xbox_details(product_ids)
+    deals_structured = merge_xbox_deals(products_raw)
+    
+    print(f"Processing {len(deals_structured)} unique titles (Merged from {len(products_raw)} raw items)...")
 
-    for data_set in deals_data_structured:
+    count_saved = 0
+    count_updated = 0
+    
+    for data_set in deals_structured:
         core_deal = data_set["core_deal"]
         xbox_meta = data_set["xbox_meta"]
         
         try:
-            # 1. 중복 체크 (Core Deal 기준)
             existing_deal = db.query(Deal).filter(
-                Deal.platform == core_deal['platform'],
-                Deal.url == core_deal['url']
+                Deal.title == core_deal['title'],
+                Deal.deal_type == "GamePass"
             ).first()
 
             if existing_deal:
-                # 2. 업데이트: Core Deal 업데이트 후 Metadata도 업데이트
-                for key, value in core_deal.items():
-                    setattr(existing_deal, key, value)
+                existing_deal.platform = core_deal['platform']
+                existing_deal.regular_price = core_deal['regular_price']
+                existing_deal.end_date = core_deal['end_date']
+                existing_deal.is_active = core_deal['is_active']
+                existing_deal.url = core_deal['url']
                 
                 existing_meta = db.query(XboxMetadata).filter_by(deal_id=existing_deal.id).first()
                 if existing_meta:
-                    for key, value in xbox_meta.items():
-                        setattr(existing_meta, key, value)
+                    existing_meta.game_pass_tier = xbox_meta['game_pass_tier']
+                    existing_meta.is_day_one = xbox_meta['is_day_one']
+                    existing_meta.removal_date = xbox_meta['removal_date']
                 else:
                     new_meta = XboxMetadata(deal_id=existing_deal.id, **xbox_meta)
                     db.add(new_meta)
-                
-                db.commit()
-                count_skipped += 1
-
+                count_updated += 1
             else:
-                # 3. 새로운 경우: Core Deal 저장 후 ID를 이용해 Metadata 저장
-                new_deal = Deal(**core_deal)
-                db.add(new_deal)
-                db.flush() # ID를 얻기 위해 강제 커밋
+                try:
+                    new_deal = Deal(**core_deal)
+                    db.add(new_deal)
+                    db.flush()
+                    new_meta = XboxMetadata(deal_id=new_deal.id, **xbox_meta)
+                    db.add(new_meta)
+                    count_saved += 1
+                except Exception:
+                    db.rollback()
+                    continue
 
-                new_meta = XboxMetadata(deal_id=new_deal.id, **xbox_meta)
-                db.add(new_meta)
-                
-                db.commit()
-                count_saved += 1
+            db.commit()
 
         except Exception as e:
             db.rollback()
-            print(f"🚨 CRITICAL DB ERROR during Xbox Save ({core_deal.get('title', 'Unknown')}): {e}")
+            print(f"🚨 DB ERROR ({core_deal.get('title')}): {e}")
+            continue
 
-    print(f"Xbox Crawler Summary: Added {count_saved} new deals, Updated/Skipped {count_skipped} existing deals.")
+    print(f"Xbox Crawler Summary: Added {count_saved} new titles, Updated {count_updated} existing titles.")
     return count_saved
