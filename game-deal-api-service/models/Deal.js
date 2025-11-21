@@ -43,6 +43,14 @@ const Deal = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: true,
     },
+    created_at: {
+      type: DataTypes.DATE,
+      field: "created_at",
+    },
+    updatedAt: {
+      type: DataTypes.DATE,
+      field: "updated_at",
+    },
   },
   {
     // 테이블 이름은 Python에서 정의한 'deals'로 명시

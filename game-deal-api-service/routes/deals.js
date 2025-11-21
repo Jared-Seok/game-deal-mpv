@@ -45,7 +45,10 @@ router.get("/", async (req, res) => {
       where: whereCondition,
       limit: limit,
       offset: offset,
-      order: [["id", "DESC"]],
+      order: [
+        ["updatedAt", "DESC"],
+        ["id", "DESC"],
+      ],
       include: [
         {
           model: XboxMetadata,

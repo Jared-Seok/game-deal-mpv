@@ -1,6 +1,6 @@
 # game-deal-tracker/db/models.py
 
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -21,6 +21,8 @@ class Deal(Base):
     image_url = Column(String, nullable=True)
     end_date = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), index=True)
     
     # 🚨 플랫폼별 메타데이터와의 관계 설정 (1:1 관계)
     epic_meta = relationship("EpicMetadata", back_populates="deal", uselist=False)

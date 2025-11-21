@@ -1,3 +1,6 @@
 {
+  "/deals/free/page": "app/deals/free/page.js",
+  "/deals/sale/page": "app/deals/sale/page.js",
+  "/deals/sub/page": "app/deals/sub/page.js",
   "/page": "app/page.js"
 }

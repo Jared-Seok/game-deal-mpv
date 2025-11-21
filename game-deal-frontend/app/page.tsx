@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import Image from "next/image";
+import Link from "next/link";
 
 // --- 1. 타입 정의 (Type Definitions) ---
-// API에서 받아올 데이터의 구조를 정의합니다.
 
 interface XboxMetadata {
   game_pass_tier: string;
@@ -25,10 +25,8 @@ interface Deal {
   regular_price: number;
   sale_price: number;
   discount_rate: number;
-  deal_type: "GamePass" | "Epic";
-  image_url?: string; // DB에 현재 없지만 추후 확장을 위해 옵셔널로 정의
-
-  // 관계형 데이터 (Optional)
+  deal_type: "GamePass" | "Epic" | "Sale" | "Free";
+  image_url?: string;
   xboxMeta?: XboxMetadata;
   epicMeta?: EpicMetadata;
 }
@@ -43,255 +41,341 @@ interface ApiResponse {
   data: Deal[];
 }
 
-type TabType = "Xbox" | "Epic";
+// 플랫폼별로 묶인 데이터 구조
+type GroupedByPlatform = Record<string, Deal[]>;
 
-// --- 2. 메인 컴포넌트 ---
+interface DashboardData {
+  free: GroupedByPlatform;
+  sale: GroupedByPlatform;
+  sub: GroupedByPlatform;
+}
+
+// --- 2. 하위 컴포넌트: 가로 스크롤 카드 리스트 ---
+const PlatformRow = ({
+  platformName,
+  deals,
+}: {
+  platformName: string;
+  deals: Deal[];
+}) => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (direction: "left" | "right") => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = 300 * 2;
+      scrollContainerRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  const getImageSrc = (deal: Deal) =>
+    deal.image_url ? deal.image_url : "/default_thumb.png";
+
+  // [수정됨] 뱃지 렌더링: 구독 정보는 텍스트로 보여주므로 Badge에서는 Day 1만 강조
+  const renderBadges = (deal: Deal) => {
+    if (deal.xboxMeta) {
+      return (
+        <div className="flex flex-wrap gap-1 mt-1">
+          {deal.xboxMeta.is_day_one && (
+            <span className="px-1.5 py-0.5 text-[9px] font-bold text-black bg-yellow-400 rounded">
+              Day 1
+            </span>
+          )}
+          {/* removal_date가 있다면 표시 가능 (예: 종료 예정) */}
+        </div>
+      );
+    }
+    if (deal.epicMeta?.is_free_to_keep) {
+      return (
+        <span className="px-1.5 py-0.5 text-[9px] font-bold text-white bg-blue-600 rounded mt-1 inline-block">
+          Free Keep
+        </span>
+      );
+    }
+    if (deal.discount_rate > 0) {
+      return (
+        <span className="px-1.5 py-0.5 text-[9px] font-bold text-white bg-red-600 rounded mt-1 inline-block">
+          -{deal.discount_rate}%
+        </span>
+      );
+    }
+    return null;
+  };
+
+  // [신규 추가] 가격 또는 구독 정보 렌더링 로직
+  const renderPriceOrInfo = (deal: Deal) => {
+    // 1. 구독 서비스 (Xbox Game Pass)인 경우 -> 티어 & 플랫폼 표시
+    if (deal.xboxMeta) {
+      return (
+        <div className="flex flex-col items-start gap-0.5">
+          {/* 티어 정보 (예: Console, PC) */}
+          <span className="text-xs font-extrabold text-green-700 uppercase">
+            {deal.xboxMeta.game_pass_tier.replace(/,/g, " · ")}
+          </span>
+          {/* 플랫폼 정보 (예: Xbox Series X|S) */}
+          <span
+            className="text-[10px] text-gray-500 truncate max-w-full"
+            title={deal.platform}
+          >
+            {deal.platform.includes("Xbox") ? "Xbox Console" : deal.platform}
+          </span>
+        </div>
+      );
+    }
+
+    // 2. 일반 딜 / 무료 배포인 경우 -> 가격 표시
+    return (
+      <div className="flex flex-col items-start">
+        {deal.regular_price > deal.sale_price && deal.regular_price > 0 && (
+          <span className="text-[10px] text-gray-400 line-through">
+            ₩{deal.regular_price.toLocaleString()}
+          </span>
+        )}
+        <span className="text-blue-600 font-bold text-sm">
+          {deal.sale_price === 0
+            ? "무료"
+            : `₩${deal.sale_price.toLocaleString()}`}
+        </span>
+      </div>
+    );
+  };
+
+  return (
+    <div className="mb-8 last:mb-0">
+      <div className="flex justify-between items-center mb-3 px-4 md:px-0">
+        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+          <span className="w-1 h-5 bg-gray-800 rounded-full inline-block"></span>
+          {platformName}{" "}
+          <span className="text-gray-400 text-sm font-normal">
+            ({deals.length})
+          </span>
+        </h3>
+        <div className="hidden md:flex gap-1">
+          <button
+            onClick={() => scroll("left")}
+            className="p-1.5 rounded-full border hover:bg-gray-100 text-gray-500"
+          >
+            ←
+          </button>
+          <button
+            onClick={() => scroll("right")}
+            className="p-1.5 rounded-full border hover:bg-gray-100 text-gray-500"
+          >
+            →
+          </button>
+        </div>
+      </div>
+
+      <div
+        ref={scrollContainerRef}
+        className="flex gap-4 overflow-x-auto pb-4 px-4 md:px-0 snap-x scrollbar-hide"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
+        {deals.map((deal) => (
+          <div
+            key={deal.id}
+            className="flex-none w-56 snap-start bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all group"
+          >
+            {/* 이미지 영역 */}
+            <div className="relative w-full h-32 bg-gray-200">
+              <Image
+                src={getImageSrc(deal)}
+                alt={deal.title}
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                unoptimized={true}
+              />
+            </div>
+
+            {/* 텍스트 정보 영역 */}
+            <div className="p-3 flex flex-col h-[140px]">
+              <h4 className="text-sm font-bold text-gray-900 leading-tight line-clamp-2 mb-1 h-10">
+                {deal.title}
+              </h4>
+
+              <div className="mt-auto">
+                <div className="mb-2 min-h-[40px] flex flex-col justify-end">
+                  {renderPriceOrInfo(deal)}
+                  {renderBadges(deal)}
+                </div>
+
+                <a
+                  href={deal.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-center bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold py-1.5 rounded transition-colors"
+                >
+                  {deal.xboxMeta ? "플레이 하기" : "스토어 이동"}
+                </a>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// --- 3. 메인 컴포넌트 ---
 export default function Home() {
-  // --- State 관리 ---
-  // useState에 제네릭(<Type>)을 사용하여 타입을 명시합니다.
-  const [deals, setDeals] = useState<Deal[]>([]);
+  const [dashboardData, setDashboardData] = useState<DashboardData>({
+    free: {},
+    sale: {},
+    sub: {},
+  });
   const [loading, setLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<TabType>("Xbox");
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
-  const [page, setPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
 
-  // --- 검색어 디바운스 ---
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-      setPage(1);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+  const processDeals = (allDeals: Deal[]) => {
+    const grouped: DashboardData = { free: {}, sale: {}, sub: {} };
 
-  // --- 데이터 가져오기 ---
+    const addToGroup = (
+      category: keyof DashboardData,
+      platform: string,
+      deal: Deal
+    ) => {
+      if (!grouped[category][platform]) {
+        grouped[category][platform] = [];
+      }
+      grouped[category][platform].push(deal);
+    };
+
+    allDeals.forEach((deal) => {
+      // 1. 구독 서비스 (Xbox Game Pass)
+      if (deal.platform.includes("Xbox") || deal.deal_type === "GamePass") {
+        addToGroup("sub", "Xbox Game Pass", deal);
+        return;
+      }
+
+      // 2. 무료 배포 (가격 0원 or Epic Free Keep)
+      if (deal.sale_price === 0 || deal.epicMeta?.is_free_to_keep) {
+        let platformName = deal.platform;
+        if (platformName.includes("Epic")) platformName = "Epic Games";
+        if (platformName.includes("Steam")) platformName = "Steam";
+
+        addToGroup("free", platformName, deal);
+      }
+      // 3. 할인 (정가 > 판매가)
+      else if (deal.regular_price > deal.sale_price && deal.sale_price > 0) {
+        let platformName = deal.platform;
+        if (platformName.includes("Epic")) platformName = "Epic Games";
+
+        addToGroup("sale", platformName, deal);
+      }
+    });
+
+    return grouped;
+  };
+
   useEffect(() => {
-    const fetchDeals = async () => {
+    const fetchAllData = async () => {
       setLoading(true);
       try {
-        // axios.get에 응답 타입(ApiResponse)을 지정하여 자동 완성을 지원받습니다.
-        const response = await axios.get<ApiResponse>(
-          "http://localhost:4000/api/v1/deals",
-          {
-            params: {
-              page: page,
-              limit: 18,
-              platform: activeTab,
-              search: debouncedSearch,
-            },
-          }
-        );
-        setDeals(response.data.data);
-        setTotalPages(response.data.meta.totalPages);
+        const [xboxRes, epicRes] = await Promise.allSettled([
+          axios.get<ApiResponse>("http://localhost:4000/api/v1/deals", {
+            params: { platform: "Xbox", limit: 3000 },
+          }),
+          axios.get<ApiResponse>("http://localhost:4000/api/v1/deals", {
+            params: { platform: "Epic", limit: 3000 },
+          }),
+        ]);
+
+        const xboxDeals =
+          xboxRes.status === "fulfilled" ? xboxRes.value.data.data : [];
+        const epicDeals =
+          epicRes.status === "fulfilled" ? epicRes.value.data.data : [];
+        const allDeals = [...xboxDeals, ...epicDeals];
+
+        setDashboardData(processDeals(allDeals));
       } catch (error) {
-        console.error("데이터 불러오기 실패:", error);
+        console.error("Failed to fetch deals", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDeals();
-  }, [activeTab, debouncedSearch, page]);
+    fetchAllData();
+  }, []);
 
-  // --- 렌더링 헬퍼: 뱃지 ---
-  const renderBadges = (deal: Deal) => {
-    if (deal.deal_type === "GamePass" && deal.xboxMeta) {
-      const tiers = deal.xboxMeta.game_pass_tier || "";
-      return (
-        <div className="flex flex-wrap gap-1 mt-2">
-          {tiers.split(",").map((tier, idx) => (
-            <span
-              key={idx}
-              className="px-2 py-1 text-[10px] font-bold text-white bg-green-600 rounded uppercase"
-            >
-              {tier.trim()}
-            </span>
-          ))}
-          {deal.xboxMeta.is_day_one && (
-            <span className="px-2 py-1 text-[10px] font-bold text-black bg-yellow-400 rounded uppercase">
-              Day 1
-            </span>
-          )}
+  const renderSection = (
+    id: string,
+    title: string,
+    desc: string,
+    data: GroupedByPlatform
+  ) => {
+    const platforms = Object.keys(data);
+    if (platforms.length === 0) return null;
+
+    return (
+      <section id={id} className="mb-16 pt-20 -mt-20">
+        <div className="mb-6 border-b border-gray-200 pb-4">
+          <h2 className="text-3xl font-extrabold text-gray-900">{title}</h2>
+          <p className="text-gray-500 mt-1">{desc}</p>
         </div>
-      );
-    }
-    if (deal.deal_type === "Epic" && deal.epicMeta) {
-      return deal.epicMeta.is_free_to_keep ? (
-        <span className="px-2 py-1 text-[10px] font-bold text-white bg-blue-600 rounded mt-2 inline-block uppercase">
-          Free Keep
-        </span>
-      ) : null;
-    }
-    return null;
-  };
-
-  // --- 렌더링 헬퍼: 이미지 ---
-  const getImageSrc = (deal: Deal) => {
-    // DB 필드 부재로 인한 Fallback 이미지 처리
-    return deal.image_url ? deal.image_url : "/default_thumb.png";
+        {platforms.map((platform) => (
+          <PlatformRow
+            key={platform}
+            platformName={platform}
+            deals={data[platform]}
+          />
+        ))}
+      </section>
+    );
   };
 
   return (
-    <main className="min-h-screen bg-gray-100 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* 헤더 */}
-        <header className="mb-8 text-center">
-          <h1 className="text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">
-            Game Deal Tracker
-          </h1>
-          <p className="text-gray-500">
-            놓치지 말아야 할 게임 패스 & 무료 배포 정보
-          </p>
-        </header>
-
-        {/* 컨트롤 바 (탭 & 검색) */}
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-          {/* 탭 버튼 */}
-          <div className="bg-white p-1.5 rounded-xl shadow-sm border border-gray-200 flex">
-            {(["Xbox", "Epic"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => {
-                  setActiveTab(tab);
-                  setPage(1);
-                }}
-                className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
-                  activeTab === tab
-                    ? "bg-gray-900 text-white shadow-md"
-                    : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                }`}
-              >
-                {tab === "Xbox" ? "Xbox Game Pass" : "Epic Games"}
-              </button>
-            ))}
-          </div>
-
-          {/* 검색창 */}
-          <div className="relative w-full md:w-80">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <svg
-                aria-hidden="true"
-                className="w-5 h-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                ></path>
-              </svg>
-            </div>
-            <input
-              type="text"
-              placeholder="게임 제목 검색..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
-            />
-          </div>
-        </div>
-
-        {/* 게임 리스트 그리드 */}
+    <div className="min-h-screen bg-gray-50">
+      <main className="max-w-7xl mx-auto px-4 md:px-8 py-8">
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-          </div>
-        ) : deals.length === 0 ? (
-          <div className="text-center py-24 bg-white rounded-2xl border border-gray-200 shadow-sm">
-            <p className="text-gray-500 text-lg">
-              조건에 맞는 게임을 찾을 수 없습니다.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {deals.map((deal) => (
-              <div
-                key={deal.id}
-                className="group bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
-              >
-                {/* 썸네일 이미지 영역 */}
-                <div className="relative w-full h-48 bg-gray-200 overflow-hidden">
-                  <Image
-                    src={getImageSrc(deal)}
-                    alt={deal.title}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    unoptimized={true} // 외부 URL 이미지가 아니라 로컬/fallback이라도 안전하게 처리
-                  />
-                  {/* 플랫폼 라벨 */}
-                  <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">
-                    {deal.platform.replace(/, /g, " · ")}
-                  </div>
-                </div>
-
-                {/* 텍스트 정보 영역 */}
-                <div className="p-5 flex-1 flex flex-col">
-                  <h3 className="text-lg font-bold text-gray-900 leading-tight mb-2 line-clamp-2">
-                    {deal.title}
-                  </h3>
-
-                  <div className="mt-auto pt-4 border-t border-gray-100 flex items-end justify-between">
-                    <div className="flex flex-col">
-                      {deal.regular_price > 0 && (
-                        <span className="text-xs text-gray-400 line-through mb-0.5">
-                          ₩{deal.regular_price.toLocaleString()}
-                        </span>
-                      )}
-                      <div className="flex items-center gap-2">
-                        <span className="text-blue-600 font-bold text-sm">
-                          {deal.sale_price === 0
-                            ? deal.deal_type === "GamePass"
-                              ? "구독 포함"
-                              : "무료 배포"
-                            : `₩${deal.sale_price.toLocaleString()}`}
-                        </span>
-                      </div>
-                      {renderBadges(deal)}
-                    </div>
-
-                    <a
-                      href={deal.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors"
-                    >
-                      스토어 →
-                    </a>
-                  </div>
+          <div className="flex flex-col gap-12 animate-pulse mt-8">
+            {[1, 2, 3].map((i) => (
+              <div key={i}>
+                <div className="h-8 bg-gray-200 rounded w-48 mb-4"></div>
+                <div className="flex gap-4 overflow-hidden">
+                  {[1, 2, 3, 4].map((j) => (
+                    <div
+                      key={j}
+                      className="w-56 h-64 bg-gray-200 rounded-lg shrink-0"
+                    ></div>
+                  ))}
                 </div>
               </div>
             ))}
           </div>
-        )}
+        ) : (
+          <>
+            {renderSection(
+              "free",
+              "🎁 무료 배포 게임",
+              "Epic Games, Steam 등 지금 바로 라이브러리에 추가하세요.",
+              dashboardData.free
+            )}
+            {renderSection(
+              "sale",
+              "🔥 할인 중인 게임",
+              "놓치면 후회할 역대급 할인 정보를 모았습니다.",
+              dashboardData.sale
+            )}
+            {renderSection(
+              "sub",
+              "🎮 구독 서비스 카탈로그",
+              "Xbox Game Pass, PS Plus 등 구독형 게임 리스트입니다.",
+              dashboardData.sub
+            )}
 
-        {/* 페이지네이션 */}
-        {deals.length > 0 && (
-          <div className="flex justify-center mt-12 gap-2">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage(page - 1)}
-              className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              이전
-            </button>
-            <span className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-700">
-              {page} / {totalPages}
-            </span>
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage(page + 1)}
-              className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              다음
-            </button>
-          </div>
+            {Object.keys(dashboardData.free).length === 0 &&
+              Object.keys(dashboardData.sale).length === 0 &&
+              Object.keys(dashboardData.sub).length === 0 && (
+                <div className="text-center py-32">
+                  <p className="text-gray-500 text-lg">
+                    현재 표시할 게임 정보가 없습니다.
+                  </p>
+                </div>
+              )}
+          </>
         )}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
