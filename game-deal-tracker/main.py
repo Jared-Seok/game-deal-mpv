@@ -1,44 +1,57 @@
-# main.py
-from config.database import init_db, get_db
+import logging
+from config.database import SessionLocal
+# 기존 크롤러 파일에 정의된 함수들을 직접 임포트 (수정 불필요)
+from crawlers.xbox_gamepass_crawler import save_xbox_deals
 from crawlers.epic_crawler import save_epic_deals
-from crawlers.xbox_gamepass_crawler import save_xbox_deals 
+# 새로 추가한 유비소프트 크롤러 (이전 단계에서 생성했다고 가정)
+from crawlers.ubisoft_crawler import crawl_ubisoft
+
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+def main():
+    logger.info("--- 🚀 게임 딜 크롤러 시작 ---")
+    
+    # 데이터베이스 세션 생성
+    db = SessionLocal()
+    
+    try:
+        # 1. Xbox Game Pass 크롤링 (세션 전달 필요)
+        logger.info("🎮 Xbox Game Pass 크롤링 시작...")
+        try:
+            save_xbox_deals(db)
+            logger.info("✅ Xbox Game Pass 크롤링 완료")
+        except Exception as e:
+            logger.error(f"❌ Xbox Game Pass 크롤링 실패: {e}")
+
+        # 2. Epic Games Store 무료 배포 크롤링 (세션 전달 필요)
+        logger.info("🛒 Epic Games Store 크롤링 시작...")
+        try:
+            save_epic_deals(db)
+            logger.info("✅ Epic Games Store 크롤링 완료")
+        except Exception as e:
+            logger.error(f"❌ Epic Games Store 크롤링 실패: {e}")
+
+        # 3. Ubisoft Store 무료 배포 크롤링 (자체 세션 관리)
+        # ubisoft_crawler.py는 내부에서 SessionLocal을 직접 호출하도록 작성되었으므로 db 인자 불필요
+        logger.info("🌀 Ubisoft Store 크롤링 시작...")
+        try:
+            crawl_ubisoft() # 내부에서 세션 생성 및 관리
+            logger.info("✅ Ubisoft Store 크롤링 완료")
+        except Exception as e:
+            logger.error(f"❌ Ubisoft Store 크롤링 실패: {e}")
+
+    except Exception as e:
+        logger.error(f"🚨 메인 프로세스 에러: {e}")
+    
+    finally:
+        # 세션 종료 (리소스 해제)
+        db.close()
+        logger.info("--- 👋 모든 작업 완료 및 DB 세션 종료 ---")
 
 if __name__ == "__main__":
-    print("--- Game Deal Crawler Service Initialization ---")
-    
-    # 1. 데이터베이스 초기화 및 테이블 생성
-    # 🚨 모델 변경 후에는 기존 테이블을 지우고 실행해야 합니다. (DROP TABLE deals; DROP TABLE xbox_metadata;)
-    try:
-        init_db() 
-    except Exception as e:
-        print(f"FATAL ERROR: Database connection failed. Check your PostgreSQL settings.")
-        print(f"Detail: {e}")
-        exit(1)
-    
-    # --- Epic Games Crawler 실행 ---
-    print("\n--- Starting Epic Games Crawler ---")
-    db_generator = get_db()
-    db = next(db_generator) 
-    
-    try:
-        save_epic_deals(db)
-    except Exception as e:
-        print(f"\n❌ CRITICAL ERROR during Epic Crawling: {e}")
-        db.rollback()
-    finally:
-        db_generator.close()
-    
-    # 🚨 Xbox Crawler 실행 블록 추가 🚨
-    print("\n--- Starting Xbox Crawler ---")
-    db_generator = get_db()
-    db = next(db_generator) 
-    
-    try:
-        save_xbox_deals(db)
-    except Exception as e:
-        print(f"\n❌ CRITICAL ERROR during Xbox Crawling: {e}")
-        db.rollback()
-    finally:
-        db_generator.close()
-    
-    print("\n--- Crawler execution finished. ---")
+    main()

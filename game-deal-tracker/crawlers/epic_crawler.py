@@ -4,6 +4,7 @@ import requests
 from datetime import datetime, timezone 
 from sqlalchemy.orm import Session
 from db.models import Deal, EpicMetadata 
+from config.database import SessionLocal  # [추가됨] DB 세션 생성기 임포트
 
 # Epic Games Store의 GraphQL API 엔드포인트
 EPIC_API_URL = "https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions"
@@ -135,7 +136,7 @@ def extract_deal_info(element):
     return {
         "platform": "Epic Games Store",
         "title": title,
-        "url": final_url,  # 수정된 URL 사용
+        "url": final_url,
         "image_url": image_url,
         "regular_price": regular_price,
         "sale_price": 0.0,
@@ -162,15 +163,9 @@ def save_epic_deals(db: Session):
         meta_data = deal_data.pop("meta_data")
         
         try:
-            # 1. 중복 체크 (타이틀 기준 업데이트로 변경 - URL이 변경되었을 수 있으므로)
-            # 기존에는 URL로 체크했으나, URL 로직이 바뀌었으므로 title + platform 조합으로 찾거나
-            # URL이 업데이트되어야 하므로 일단 title로 찾는 것이 안전할 수 있음.
-            # 하지만 가장 안전한 것은 기존 URL 체크 유지 + 신규 추가.
-            # (기존 잘못된 URL 데이터는 삭제 권장)
-            
             existing_deal = db.query(Deal).filter(
                 Deal.platform == deal_data['platform'],
-                Deal.title == deal_data['title'] # 타이틀로 비교하여 URL 업데이트 수행
+                Deal.title == deal_data['title'] 
             ).first()
 
             if existing_deal:
@@ -205,3 +200,21 @@ def save_epic_deals(db: Session):
 
     print(f"Epic Crawler Summary: Added {count_saved}, Updated {count_skipped} deals.")
     return count_saved
+
+# --- [추가됨] 메인 크롤링 진입점 ---
+def crawl_epic():
+    """
+    메인 실행 파일(main.py)에서 호출하는 함수.
+    DB 세션을 생성하고 크롤링 로직을 실행합니다.
+    """
+    session = SessionLocal()
+    try:
+        print("🛒 Starting Epic Games Crawler...")
+        save_epic_deals(session)
+    except Exception as e:
+        print(f"❌ Epic Crawler Error: {e}")
+    finally:
+        session.close()
+
+if __name__ == "__main__":
+    crawl_epic()
