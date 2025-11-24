@@ -22,15 +22,18 @@ export default function FreeDealCard({ deal, className = "" }: DealCardProps) {
     setImgSrc("/images/epic_logo.jpg");
   };
 
-  // Ubisoft 및 날짜 포맷팅 (GMT -> KST +9)
+  // --- [로직] 날짜 계산 (Ubisoft +9시간 보정) ---
   const getFormattedEndDate = () => {
     if (!deal.end_date) return null;
+
     let endDate = new Date(deal.end_date);
+
+    // Ubisoft: GMT 기준이므로 KST(+9h) 보정
+    // 24시 초과 시 날짜 자동 계산은 Date 객체 메서드(setHours)가 알아서 처리함
     if (deal.platform.toLowerCase().includes("ubisoft")) {
-      endDate = new Date(endDate.getTime() + 9 * 60 * 60 * 1000);
+      endDate.setHours(endDate.getHours() + 9);
     }
 
-    // 날짜 형식을 "12월 31일 14:00" 형태로 간소화
     return endDate.toLocaleString("ko-KR", {
       month: "long",
       day: "numeric",
@@ -38,6 +41,14 @@ export default function FreeDealCard({ deal, className = "" }: DealCardProps) {
       minute: "2-digit",
       hour12: false,
     });
+  };
+
+  // 플랫폼 이름 정제 (이미지 좌측 상단용)
+  const getPlatformName = () => {
+    if (deal.platform.toLowerCase().includes("epic")) return "EPIC GAMES";
+    if (deal.platform.toLowerCase().includes("ubisoft")) return "UBISOFT";
+    if (deal.platform.toLowerCase().includes("steam")) return "STEAM";
+    return deal.platform;
   };
 
   return (
@@ -50,7 +61,7 @@ export default function FreeDealCard({ deal, className = "" }: DealCardProps) {
         rel="noopener noreferrer"
         className="flex flex-col h-full"
       >
-        {/* --- [1] 이미지 영역 --- */}
+        {/* 이미지 영역 */}
         <div className="relative w-full aspect-video bg-gray-200 overflow-hidden">
           <Image
             src={imgSrc}
@@ -61,48 +72,51 @@ export default function FreeDealCard({ deal, className = "" }: DealCardProps) {
             unoptimized
           />
 
-          {/* Free Keep 뱃지 (좌측 상단 고정) */}
-          <div className="absolute top-2 left-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm z-10">
-            Free Keep
+          {/* [수정 1] 좌측 상단 플랫폼 뱃지 (검정 반투명 배경) */}
+          <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide z-10">
+            {getPlatformName()}
           </div>
         </div>
 
-        {/* --- 텍스트/정보 영역 --- */}
+        {/* 텍스트 정보 영역 */}
         <div className="p-3 flex flex-col flex-grow">
-          <h3 className="text-sm font-bold text-gray-900 leading-tight line-clamp-2 mb-3 group-hover:text-blue-600 transition-colors">
+          {/* 타이틀 */}
+          <h3 className="text-sm font-bold text-gray-900 leading-tight line-clamp-2 mb-4 group-hover:text-blue-600 transition-colors">
             {deal.title}
           </h3>
 
           <div className="mt-auto">
-            {/* 가격 및 종료일 정보 행 */}
-            <div className="flex justify-between items-end mb-2">
-              {/* 가격 정보 (좌측) */}
+            <div className="flex justify-between items-end mb-3">
+              {/* [수정 2] 가격 정보 (좌측) */}
               <div className="flex flex-col items-start">
+                {/* 정가 (취소선) */}
                 {deal.regular_price > 0 && (
-                  <span className="text-[11px] text-gray-400 line-through mb-0.5">
+                  <span className="text-xs text-gray-400 line-through mb-0.5">
                     ₩{deal.regular_price.toLocaleString()}
                   </span>
                 )}
-                {/* [3] 무료 폰트 크기 확대 (text-2xl) */}
-                <span className="text-blue-600 font-extrabold text-2xl leading-none">
+                {/* 무료 텍스트 강조 */}
+                <span className="text-blue-600 font-extrabold text-xl">
                   무료
                 </span>
               </div>
 
-              {/* [2] 종료 일자 (우측 하단) */}
+              {/* [수정 3] 종료 일자 (우측) */}
               {deal.end_date && (
-                <div className="text-right pb-0.5">
-                  <p className="text-[10px] text-gray-400 mb-0.5">배포 종료</p>
-                  <p className="text-[11px] text-red-500 font-bold bg-red-50 px-1.5 py-0.5 rounded inline-block">
-                    {getFormattedEndDate()}
-                  </p>
+                <div className="text-right flex flex-col items-end">
+                  <span className="text-[10px] text-gray-400 mb-0.5">
+                    종료 일시
+                  </span>
+                  <span className="text-[11px] text-red-600 font-bold bg-red-50 px-1.5 py-0.5 rounded">
+                    ~ {getFormattedEndDate()}
+                  </span>
                 </div>
               )}
             </div>
 
-            {/* 버튼 */}
-            <div className="w-full text-center bg-gray-100 group-hover:bg-gray-200 text-gray-800 text-xs font-bold py-2 rounded transition-colors">
-              스토어 이동
+            {/* [수정 4] 버튼 통일 */}
+            <div className="w-full text-center bg-gray-100 group-hover:bg-gray-200 text-gray-800 text-xs font-bold py-2.5 rounded transition-colors">
+              스토어로 이동
             </div>
           </div>
         </div>

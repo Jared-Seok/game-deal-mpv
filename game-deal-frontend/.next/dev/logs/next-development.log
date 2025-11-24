@@ -1,1 +1,13 @@
-[00:00:00.856] Server  LOG      ✓ Ready in 606ms
+[00:00:00.926] Server  LOG      ✓ Ready in 688ms
+[00:00:03.791] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
+[00:00:03.791] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
+[00:00:03.791] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
+[00:00:14.628] Browser ERROR   uncaughtError: TypeError: undefined is not an object (evaluating 'deal.deal_type')
+[00:00:34.108] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
+[00:00:34.108] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
+[00:00:34.108] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
+[00:00:35.364] Browser ERROR   uncaughtError: TypeError: undefined is not an object (evaluating 'deal.deal_type')
+[00:00:39.972] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
+[00:00:39.972] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
+[00:00:39.972] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
+[00:00:41.668] Browser ERROR   uncaughtError: TypeError: undefined is not an object (evaluating 'deal.deal_type')

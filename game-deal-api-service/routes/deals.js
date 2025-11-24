@@ -1,3 +1,5 @@
+// game-deal-api-service/routes/deals.js
+
 const express = require("express");
 const router = express.Router();
 const { Deal, XboxMetadata, EpicMetadata } = require("../models");
@@ -10,30 +12,35 @@ router.get("/", async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
 
-    const platform = req.query.platform;
-    const search = req.query.search;
+    const { type, platform, search } = req.query;
 
     // 기본 조건: 활성화된 딜만 조회
     const whereCondition = {
       is_active: true,
     };
 
-    // 🚨 [수정 핵심] 플랫폼 필터링 로직 개선
-    if (platform) {
-      if (platform === "Xbox" || platform === "Xbox Game Pass") {
-        // 탭이 Xbox면 -> GamePass 타입만 조회
+    // 1. [핵심] 딜 유형(Category)으로 필터링
+    // 프론트엔드 요청: type = 'free' | 'sub' | 'sale'
+    if (type) {
+      if (type === "sub") {
+        // 구독 서비스 (Xbox Game Pass 등)
         whereCondition.deal_type = "GamePass";
-      } else if (platform === "Epic" || platform.includes("Epic")) {
-        // 탭이 Epic이면 -> 크롤러가 저장한 값인 'Free'로 조회
-        // (기존 "Epic"에서 "Free"로 변경)
+      } else if (type === "free") {
+        // 무료 배포 (Epic, Steam, Ubisoft 등)
         whereCondition.deal_type = "Free";
-      } else {
-        // 그 외의 경우 (예: 직접 검색 등) 플랫폼 이름으로 검색
-        whereCondition.platform = { [Op.iLike]: `%${platform}%` };
+      } else if (type === "sale") {
+        // 일반 할인
+        whereCondition.deal_type = "Sale";
       }
     }
 
-    // 검색 기능 (타이틀 검색)
+    // 2. 플랫폼 추가 필터링 (옵션)
+    // 예: 무료 게임 중에서 'Steam'만 보고 싶을 때
+    if (platform) {
+      whereCondition.platform = { [Op.iLike]: `%${platform}%` };
+    }
+
+    // 3. 검색 기능 (타이틀)
     if (search) {
       whereCondition.title = {
         [Op.iLike]: `%${search}%`,
@@ -45,6 +52,7 @@ router.get("/", async (req, res) => {
       where: whereCondition,
       limit: limit,
       offset: offset,
+      // 정렬: 최신 업데이트순, 그 다음 ID순
       order: [
         ["updatedAt", "DESC"],
         ["id", "DESC"],
