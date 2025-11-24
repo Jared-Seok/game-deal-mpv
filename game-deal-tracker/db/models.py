@@ -68,14 +68,17 @@ class XboxMetadata(Base):
     def __repr__(self):
         return f"<XboxMetadata(deal_id={self.deal_id}, is_day_one={self.is_day_one})>"
     
-    class SteamMetadata(Base):
-        __tablename__ = "steam_metadata"
-        deal_id = Column(Integer, ForeignKey('deals.id'), primary_key=True)
-        steam_app_id = Column(Integer, nullable=True)
-        review_summary = Column(String, nullable=True)
-        positive_review_percent = Column(Integer, default=0)
-        total_reviews = Column(Integer, default=0)
-        deal = relationship("Deal", back_populates="steam_meta")
+class SteamMetadata(Base):
+    __tablename__ = "steam_metadata"
+    deal_id = Column(Integer, ForeignKey('deals.id'), primary_key=True)
+    steam_app_id = Column(Integer, nullable=True)
+    review_summary = Column(String, nullable=True)
+    positive_review_percent = Column(Integer, default=0)
+    total_reviews = Column(Integer, default=0)
+    deal = relationship("Deal", back_populates="steam_meta")
+    
+    def __repr__(self):
+        return f"<SteamMetadata(app_id={self.steam_app_id},review={self.review_summary})"
         
 class UbisoftMetadata(Base):
     __tablename__ = "ubisoft_metadata"
