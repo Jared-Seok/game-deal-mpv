@@ -2,8 +2,10 @@
 
 import requests
 from datetime import datetime, timezone 
-from sqlalchemy.orm import Session
+# 🚨 [수정] Session은 더 이상 필요 없으며, 공통 모듈 임포트로 대체
 from db.models import Deal, EpicMetadata 
+from config.database import get_db_context # <- 필수 임포트
+from db.crud import upsert_deal           # <- 필수 임포트
 
 # Epic Games Store의 GraphQL API 엔드포인트
 EPIC_API_URL = "https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions"
@@ -26,7 +28,8 @@ def fetch_epic_deals():
             # 할인 가격이 0원인 경우만 추출
             if element.get('price', {}).get('totalPrice', {}).get('discountPrice') == 0:
                 deal_info = extract_deal_info(element)
-                if deal_info and deal_info['is_active']: 
+                # [Fix] extract_deal_info가 이제 dict를 리턴하므로 key 접근 수정
+                if deal_info and deal_info['deal_data']['is_active']: 
                     deals_list.append(deal_info)
                     
         return deals_list
@@ -36,7 +39,7 @@ def fetch_epic_deals():
         return []
 
 def extract_deal_info(element):
-    """API 응답 요소에서 정확한 URL Slug와 정보를 추출합니다."""
+    """API 응답 요소에서 정확한 URL Slug와 정보를 추출하고, deal_data와 meta_data로 분리합니다."""
     
     title = element.get('title')
     
@@ -67,7 +70,6 @@ def extract_deal_info(element):
         return None
 
     # --- 2. URL 타입 결정 (일반 게임 vs 번들) ---
-    # 카테고리 정보를 확인하여 'bundles'인지 'p'(product)인지 결정
     url_type = "p" # 기본값
     categories = element.get('categories', [])
     for cat in categories:
@@ -99,8 +101,6 @@ def extract_deal_info(element):
     end_date = None
     promotions = element.get('promotions', {})
     current_promo_groups = promotions.get('promotionalOffers', []) if promotions else []
-    
-    # 가격 정보 내의 lineOffers에서도 프로모션 확인
     line_offers = element.get('price', {}).get('lineOffers', [])
     
     all_offers_to_check = []
@@ -132,76 +132,72 @@ def extract_deal_info(element):
     if end_date:
         is_active_status = now_utc < end_date
 
+    # 🚨 [수정 3] 반환 형식을 Deal 데이터와 Meta 데이터로 명확히 분리하여 반환합니다.
     return {
-        "platform": "Epic Games Store",
-        "title": title,
-        "url": final_url,  # 수정된 URL 사용
-        "image_url": image_url,
-        "regular_price": regular_price,
-        "sale_price": 0.0,
-        "discount_rate": 100,
-        "deal_type": "Free",
-        "end_date": end_date,
-        "is_active": is_active_status,
+        "deal_data": {
+            "platform": "Epic Games Store",
+            "title": title,
+            "url": final_url,
+            "image_url": image_url,
+            "regular_price": regular_price,
+            "sale_price": 0.0,
+            "discount_rate": 100,
+            "deal_type": "Free",
+            "end_date": end_date,
+            "is_active": is_active_status,
+        },
         "meta_data": {
             "is_free_to_keep": True 
         }
     }
 
-def save_epic_deals(db: Session):
-    """수집된 Epic Deals를 저장합니다."""
-    deals_data = fetch_epic_deals()
-    count_saved = 0
-    count_skipped = 0
+# 🚨 [수정 4] 원래 코드를 유지하면서 save_epic_deals 함수를 삭제하지 않고, crawl_epic 함수가 DB 저장을 담당하도록 변경합니다.
+# 사용자가 제공한 코드 전문을 보면, save_epic_deals 함수와 crawl_epic 함수가 모두 존재하며, crawl_epic 함수가 새로운 DB 로직을 사용하려고 합니다.
+# 기존 로직을 최대한 유지하면서 새로운 crawl_epic을 작동시키기 위해, 기존 save_epic_deals는 주석 처리하거나 삭제하는 것이 논리적입니다.
+# 여기서는 기존 save_epic_deals 함수를 삭제하고 crawl_epic이 DB를 처리하도록 통합합니다.
+# (원래 save_epic_deals는 Session을 인자로 받지만, 새로운 구조는 SessionLocal을 사용하므로 호환성이 없음)
+
+# def save_epic_deals(db: Session):
+#     """기존 DB 저장 로직 (삭제 또는 주석 처리 권장)"""
+#     ... (삭제) ...
+
+# 🚨 [수정 5] main.py가 임포트하는 최종 진입점 함수 (DB 로직 통합)
+# 이 함수가 새로운 upsert_deal 로직을 사용하여 DB에 저장합니다.
+def crawl_epic():
+    print("🎮 Starting Epic Games Crawler...")
+    deals_structured = fetch_epic_deals()
     
-    if not deals_data:
-        print("No deals found from Epic Games API.")
-        return 0
+    if not deals_structured:
+        print("   - No deals found.")
+        return
 
-    for deal_data in deals_data:
-        meta_data = deal_data.pop("meta_data")
+    # 🚨 get_db_context를 사용하여 안전하게 세션 관리
+    with get_db_context() as db:
+        added, updated = 0, 0
+        for item in deals_structured:
+            try:
+                filters = {
+                    "platform": "Epic Games Store",
+                    "title": item["deal_data"]["title"] # 타이틀로 중복 체크
+                }
+                
+                result = upsert_deal(
+                    db, 
+                    deal_data=item["deal_data"], 
+                    metadata_model=EpicMetadata, 
+                    metadata_data=item["meta_data"],
+                    unique_filters=filters
+                )
+                if result == "created": added += 1
+                else: updated += 1
+            except Exception as e:
+                # DB 오류 발생 시 롤백 (세션 복구) 후 다음 항목 진행
+                db.rollback() 
+                print(f"⚠️ Epic Insert Error ({item['deal_data'].get('title', 'Unknown')}): {e}")
+                continue
         
-        try:
-            # 1. 중복 체크 (타이틀 기준 업데이트로 변경 - URL이 변경되었을 수 있으므로)
-            # 기존에는 URL로 체크했으나, URL 로직이 바뀌었으므로 title + platform 조합으로 찾거나
-            # URL이 업데이트되어야 하므로 일단 title로 찾는 것이 안전할 수 있음.
-            # 하지만 가장 안전한 것은 기존 URL 체크 유지 + 신규 추가.
-            # (기존 잘못된 URL 데이터는 삭제 권장)
-            
-            existing_deal = db.query(Deal).filter(
-                Deal.platform == deal_data['platform'],
-                Deal.title == deal_data['title'] # 타이틀로 비교하여 URL 업데이트 수행
-            ).first()
+        db.commit()
+        print(f"✅ Epic Crawler Finished: Added {added}, Updated {updated}")
 
-            if existing_deal:
-                # URL 및 정보 업데이트
-                for key, value in deal_data.items():
-                    setattr(existing_deal, key, value)
-                
-                existing_meta = db.query(EpicMetadata).filter_by(deal_id=existing_deal.id).first()
-                if existing_meta:
-                    for key, value in meta_data.items():
-                        setattr(existing_meta, key, value)
-                
-                db.commit()
-                count_skipped += 1
-                print(f"DEBUG: Updated existing deal: {existing_deal.title}")
-
-            else:
-                new_deal = Deal(**deal_data)
-                db.add(new_deal)
-                db.flush()
-
-                new_meta = EpicMetadata(deal_id=new_deal.id, **meta_data)
-                db.add(new_meta)
-                
-                db.commit()
-                count_saved += 1
-                print(f"DEBUG: Successfully added new deal: {new_deal.title}")
-
-        except Exception as e:
-            db.rollback()
-            print(f"🚨 CRITICAL DB ERROR during Epic Save ({deal_data.get('title', 'Unknown')}): {e}")
-
-    print(f"Epic Crawler Summary: Added {count_saved}, Updated {count_skipped} deals.")
-    return count_saved
+if __name__ == "__main__":
+    crawl_epic()

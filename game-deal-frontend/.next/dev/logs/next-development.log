@@ -1,26 +1,4 @@
-[00:00:00.957] Server  LOG      ✓ Ready in 716ms
-[00:00:03.712] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
-[00:00:03.712] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
-[00:00:03.712] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
-[00:00:03.712] Browser ERROR   API Fetch Error: Internal Server Error
-[00:00:03.712] Browser ERROR   API Fetch Error: Internal Server Error
-[00:00:03.712] Browser ERROR   API Fetch Error: Internal Server Error
-[00:02:04.995] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
-[00:02:04.995] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
-[00:02:04.995] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
-[00:02:11.262] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=free
-[00:02:11.262] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=free
-[00:02:12.825] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=sale
-[00:02:12.825] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=sale
-[00:02:13.743] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=sub
-[00:02:13.743] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=sub
-[00:02:14.565] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=sale
-[00:02:14.565] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=sale
-[00:02:15.049] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=free
-[00:02:15.049] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=free
-[00:02:16.162] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
-[00:02:16.162] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
-[00:02:16.162] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
-[00:02:16.162] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
-[00:02:16.162] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
-[00:02:16.162] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
+[00:00:00.979] Server  LOG      ✓ Ready in 733ms
+[00:00:04.048] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
+[00:00:04.048] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
+[00:00:04.048] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale

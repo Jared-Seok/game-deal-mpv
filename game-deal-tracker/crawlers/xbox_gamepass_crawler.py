@@ -2,8 +2,11 @@
 
 import requests
 from datetime import datetime, timezone
-from sqlalchemy.orm import Session
-from db.models import Deal, XboxMetadata 
+# 🚨 [수정 1] 외부에서 필요한 함수를 사용하기 위해 임포트 추가 (config/database.py와 db/crud.py가 이미 수정되었어야 함)
+from config.database import get_db_context
+from db.crud import upsert_deal 
+
+from db.models import Deal, XboxMetadata
 from typing import List, Dict, Set, Tuple
 
 # 1단계 API: Game Pass ID 목록
@@ -316,67 +319,49 @@ def merge_xbox_deals(products: List[dict]) -> List[dict]:
         
     return final_list
 
-# --- 5. DB 저장 함수 ---
-def save_xbox_deals(db: Session):
-    product_ids = get_product_ids()
-    if not product_ids:
-        print("No products found.")
-        return 0
-        
-    products_raw = fetch_xbox_details(product_ids)
+# --- 🚨 [수정 2] main.py가 찾고 있는 진입점 함수 정의 (save_xbox_deals 로직 대체) ---
+def crawl_xbox_gamepass():
+    print("🟢 Starting Xbox Game Pass Crawler...")
+    ids = get_product_ids()
+    if not ids:
+        print("   - No Product IDs found.")
+        return
+
+    products_raw = fetch_xbox_details(ids)
     deals_structured = merge_xbox_deals(products_raw)
-    
+
     print(f"Processing {len(deals_structured)} unique titles (Merged from {len(products_raw)} raw items)...")
 
     count_saved = 0
     count_updated = 0
-    
-    for data_set in deals_structured:
-        core_deal = data_set["core_deal"]
-        xbox_meta = data_set["xbox_meta"]
+
+    with get_db_context() as db:
+        for item in deals_structured:
+            try:
+                filters = {
+                    "title": item["core_deal"]["title"],
+                    "deal_type": "GamePass"
+                }
+                # crud.py의 upsert_deal 함수 사용 (기존 save_xbox_deals의 복잡한 로직 대체)
+                result = upsert_deal(
+                    db,
+                    deal_data=item["core_deal"],
+                    metadata_model=XboxMetadata,
+                    metadata_data=item["xbox_meta"],
+                    unique_filters=filters
+                )
+                if result == "created": count_saved += 1
+                else: count_updated += 1
+            except Exception as e:
+                # DB 트랜잭션 오류 발생 시 롤백 (세션 복구)
+                db.rollback() 
+                print(f"⚠️ Xbox Insert Error ({item['core_deal']['title']}): {e}")
+                continue
         
-        try:
-            existing_deal = db.query(Deal).filter(
-                Deal.title == core_deal['title'],
-                Deal.deal_type == "GamePass"
-            ).first()
+        db.commit()
+        print(f"✅ Xbox Crawler Finished: Added {count_saved}, Updated {count_updated}")
 
-            if existing_deal:
-                existing_deal.platform = core_deal['platform']
-                existing_deal.regular_price = core_deal['regular_price']
-                existing_deal.end_date = core_deal['end_date']
-                existing_deal.is_active = core_deal['is_active']
-                existing_deal.url = core_deal['url']
-                # 🆕 업데이트 시 이미지 URL도 갱신
-                existing_deal.image_url = core_deal['image_url']
-                
-                existing_meta = db.query(XboxMetadata).filter_by(deal_id=existing_deal.id).first()
-                if existing_meta:
-                    existing_meta.game_pass_tier = xbox_meta['game_pass_tier']
-                    existing_meta.is_day_one = xbox_meta['is_day_one']
-                    existing_meta.removal_date = xbox_meta['removal_date']
-                else:
-                    new_meta = XboxMetadata(deal_id=existing_deal.id, **xbox_meta)
-                    db.add(new_meta)
-                count_updated += 1
-            else:
-                try:
-                    new_deal = Deal(**core_deal)
-                    db.add(new_deal)
-                    db.flush()
-                    new_meta = XboxMetadata(deal_id=new_deal.id, **xbox_meta)
-                    db.add(new_meta)
-                    count_saved += 1
-                except Exception:
-                    db.rollback()
-                    continue
-
-            db.commit()
-
-        except Exception as e:
-            db.rollback()
-            print(f"🚨 DB ERROR ({core_deal.get('title')}): {e}")
-            continue
-
-    print(f"Xbox Crawler Summary: Added {count_saved} new titles, Updated {count_updated} existing titles.")
-    return count_saved
+if __name__ == "__main__":
+    # 이 부분은 원래 코드를 유지하지만, 위 crawl_xbox_gamepass가 실제 실행됩니다.
+    # crawl_xbox_gamepass 함수가 save_xbox_deals의 기능을 포함하도록 변경했습니다.
+    crawl_xbox_gamepass()
