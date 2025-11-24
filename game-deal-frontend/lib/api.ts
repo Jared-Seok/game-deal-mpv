@@ -10,6 +10,12 @@ export interface EpicMetadata {
   is_free_to_keep: boolean;
 }
 
+// [NEW] Ubisoft 메타데이터 타입 추가
+export interface UbisoftMetadata {
+  is_freeplay: boolean;
+  has_giveaway_badge: boolean;
+}
+
 export interface Deal {
   id: number;
   platform: string;
@@ -22,14 +28,18 @@ export interface Deal {
   end_date: string | null;
   is_active: boolean;
   image_url?: string | null;
+
+  // 메타데이터 필드들
   xboxMeta?: XboxMetadata;
   epicMeta?: EpicMetadata;
+  ubiMeta?: UbisoftMetadata; // [추가됨]
+  steamMeta?: any; // 스팀도 추후 구체화 가능
 }
 
 interface FetchDealsParams {
   page?: number;
   limit?: number;
-  type?: "free" | "sub" | "sale"; // 카테고리 필터 추가
+  type?: "free" | "sub" | "sale";
   platform?: string;
   search?: string;
 }

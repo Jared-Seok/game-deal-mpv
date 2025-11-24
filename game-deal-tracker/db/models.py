@@ -27,8 +27,8 @@ class Deal(Base):
     # 🚨 플랫폼별 메타데이터와의 관계 설정 (1:1 관계)
     epic_meta = relationship("EpicMetadata", back_populates="deal", uselist=False)
     xbox_meta = relationship("XboxMetadata", back_populates="deal", uselist=False)
-    # steam_meta = relationship("SteamMetadata", back_populates="deal", uselist=False) # 추후 확장용
-    # ubi_meta = relationship("UbisoftMetadata", back_populates="deal", uselist=False) # 추후 확장용
+    steam_meta = relationship("SteamMetadata", back_populates="deal", uselist=False) 
+    ubi_meta = relationship("UbisoftMetadata", back_populates="deal", uselist=False) 
 
     def __repr__(self):
         return f"<Deal(title='{self.title}', platform='{self.platform}')>"
@@ -67,5 +67,28 @@ class XboxMetadata(Base):
 
     def __repr__(self):
         return f"<XboxMetadata(deal_id={self.deal_id}, is_day_one={self.is_day_one})>"
+    
+    class SteamMetadata(Base):
+        __tablename__ = "steam_metadata"
+        deal_id = Column(Integer, ForeignKey('deals.id'), primary_key=True)
+        steam_app_id = Column(Integer, nullable=True)
+        review_summary = Column(String, nullable=True)
+        positive_review_percent = Column(Integer, default=0)
+        total_reviews = Column(Integer, default=0)
+        deal = relationship("Deal", back_populates="steam_meta")
+        
+class UbisoftMetadata(Base):
+    __tablename__ = "ubisoft_metadata"
+    
+    deal_id = Column(Integer, ForeignKey('deals.id'), primary_key=True)
+    
+    # 유비소프트 특화 정보
+    is_freeplay = Column(Boolean, default=False)      # 체험판/주말무료 여부
+    has_giveaway_badge = Column(Boolean, default=False) # 정식 배포 배지 유무
+    
+    deal = relationship("Deal", back_populates="ubi_meta")
 
+    def __repr__(self):
+        return f"<UbisoftMetadata(deal_id={self.deal_id}, giveaway={self.has_giveaway_badge})>"
+        
 # 🚨 참고: Steam, Ubisoft Metadata 테이블도 유사한 구조로 추가 예정

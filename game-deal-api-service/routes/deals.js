@@ -2,7 +2,13 @@
 
 const express = require("express");
 const router = express.Router();
-const { Deal, XboxMetadata, EpicMetadata } = require("../models");
+const {
+  Deal,
+  XboxMetadata,
+  EpicMetadata,
+  SteamMetadata,
+  UbisoftMetadata,
+} = require("../models");
 const { Op } = require("sequelize");
 
 // GET /api/v1/deals
@@ -66,6 +72,16 @@ router.get("/", async (req, res) => {
         {
           model: EpicMetadata,
           as: "epicMeta",
+          required: false,
+        },
+        {
+          model: SteamMetadata,
+          as: "steamMeta",
+          required: false,
+        },
+        {
+          model: UbisoftMetadata,
+          as: "ubiMeta",
           required: false,
         },
       ],
