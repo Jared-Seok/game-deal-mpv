@@ -4,7 +4,6 @@ import requests
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from db.models import Deal, XboxMetadata 
-from config.database import SessionLocal  # [추가됨] DB 세션 생성기 임포트
 from typing import List, Dict, Set, Tuple
 
 # 1단계 API: Game Pass ID 목록
@@ -249,7 +248,7 @@ def extract_raw_data(product: dict):
         "plans": plans,
         "is_day_one": is_day_one,
         "removal_date": removal_date,
-        "image_url": image_url 
+        "image_url": image_url # 🆕 반환 데이터에 포함
     }
 
 # --- 4. 데이터 병합 (Merge Logic) ---
@@ -276,7 +275,7 @@ def merge_xbox_deals(products: List[dict]) -> List[dict]:
                 existing['is_day_one'] = True
             if not existing['removal_date'] and raw['removal_date']:
                 existing['removal_date'] = raw['removal_date']
-            # 더 나은 이미지가 있으면 업데이트
+            # 🆕 더 나은 이미지가 있으면 업데이트 (기존이 없거나 비었을 때)
             if not existing.get('image_url') and raw.get('image_url'):
                 existing['image_url'] = raw['image_url']
 
@@ -299,7 +298,7 @@ def merge_xbox_deals(products: List[dict]) -> List[dict]:
                 "platform": platform_str,
                 "title": title,
                 "url": data['url'],
-                "image_url": data['image_url'],
+                "image_url": data['image_url'], # 🆕 Core Deal 모델에 전달
                 "regular_price": data['price'],
                 "sale_price": 0.0,
                 "discount_rate": 100,
@@ -348,6 +347,7 @@ def save_xbox_deals(db: Session):
                 existing_deal.end_date = core_deal['end_date']
                 existing_deal.is_active = core_deal['is_active']
                 existing_deal.url = core_deal['url']
+                # 🆕 업데이트 시 이미지 URL도 갱신
                 existing_deal.image_url = core_deal['image_url']
                 
                 existing_meta = db.query(XboxMetadata).filter_by(deal_id=existing_deal.id).first()
@@ -380,21 +380,3 @@ def save_xbox_deals(db: Session):
 
     print(f"Xbox Crawler Summary: Added {count_saved} new titles, Updated {count_updated} existing titles.")
     return count_saved
-
-# --- 6. [추가됨] 메인 크롤링 진입점 ---
-def crawl_xbox_gamepass():
-    """
-    메인 실행 파일(main.py)에서 호출하는 함수.
-    DB 세션을 생성하고 크롤링 로직을 실행합니다.
-    """
-    session = SessionLocal()
-    try:
-        print("🎮 Starting Xbox Game Pass Crawler...")
-        save_xbox_deals(session)
-    except Exception as e:
-        print(f"❌ Xbox Crawler Error: {e}")
-    finally:
-        session.close()
-
-if __name__ == "__main__":
-    crawl_xbox_gamepass()

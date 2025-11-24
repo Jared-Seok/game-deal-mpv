@@ -1,4 +1,17 @@
-// 딜 데이터의 타입을 정의합니다. (TypeScript 필수)
+// lib/api.ts
+
+// 1. 메타데이터 타입 정의 추가
+export interface XboxMetadata {
+  game_pass_tier: string;
+  is_day_one: boolean;
+  removal_date?: string;
+}
+
+export interface EpicMetadata {
+  is_free_to_keep: boolean;
+}
+
+// 2. Deal 인터페이스에 메타데이터 속성(옵션) 추가
 export interface Deal {
   id: number;
   platform: string;
@@ -11,6 +24,10 @@ export interface Deal {
   end_date: string | null;
   is_active: boolean;
   image_url?: string | null;
+
+  // 추가된 필드
+  xboxMeta?: XboxMetadata;
+  epicMeta?: EpicMetadata;
 }
 
 export async function fetchAllDeals(): Promise<Deal[]> {
@@ -28,7 +45,6 @@ export async function fetchAllDeals(): Promise<Deal[]> {
       return [];
     }
 
-    // JSON 응답을 Deal[] 타입으로 명시합니다.`
     const data: Deal[] = await res.json();
     return data;
   } catch (error) {

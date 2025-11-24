@@ -2,34 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import Image from "next/image";
-import Link from "next/link";
-
-// --- 1. 타입 정의 (Type Definitions) ---
-
-interface XboxMetadata {
-  game_pass_tier: string;
-  is_day_one: boolean;
-  removal_date?: string;
-}
-
-interface EpicMetadata {
-  is_free_to_keep: boolean;
-}
-
-interface Deal {
-  id: number;
-  platform: string;
-  title: string;
-  url: string;
-  regular_price: number;
-  sale_price: number;
-  discount_rate: number;
-  deal_type: "GamePass" | "Epic" | "Sale" | "Free";
-  image_url?: string;
-  xboxMeta?: XboxMetadata;
-  epicMeta?: EpicMetadata;
-}
+import DealCard from "../components/DealCard"; // 컴포넌트 사용
+import { Deal } from "../lib/api";
 
 interface ApiResponse {
   meta: {
@@ -41,7 +15,6 @@ interface ApiResponse {
   data: Deal[];
 }
 
-// 플랫폼별로 묶인 데이터 구조
 type GroupedByPlatform = Record<string, Deal[]>;
 
 interface DashboardData {
@@ -50,7 +23,7 @@ interface DashboardData {
   sub: GroupedByPlatform;
 }
 
-// --- 2. 하위 컴포넌트: 가로 스크롤 카드 리스트 ---
+// --- PlatformRow 컴포넌트 ---
 const PlatformRow = ({
   platformName,
   deals,
@@ -68,78 +41,6 @@ const PlatformRow = ({
         behavior: "smooth",
       });
     }
-  };
-
-  const getImageSrc = (deal: Deal) =>
-    deal.image_url ? deal.image_url : "/default_thumb.png";
-
-  // [수정됨] 뱃지 렌더링: 구독 정보는 텍스트로 보여주므로 Badge에서는 Day 1만 강조
-  const renderBadges = (deal: Deal) => {
-    if (deal.xboxMeta) {
-      return (
-        <div className="flex flex-wrap gap-1 mt-1">
-          {deal.xboxMeta.is_day_one && (
-            <span className="px-1.5 py-0.5 text-[9px] font-bold text-black bg-yellow-400 rounded">
-              Day 1
-            </span>
-          )}
-          {/* removal_date가 있다면 표시 가능 (예: 종료 예정) */}
-        </div>
-      );
-    }
-    if (deal.epicMeta?.is_free_to_keep) {
-      return (
-        <span className="px-1.5 py-0.5 text-[9px] font-bold text-white bg-blue-600 rounded mt-1 inline-block">
-          Free Keep
-        </span>
-      );
-    }
-    if (deal.discount_rate > 0) {
-      return (
-        <span className="px-1.5 py-0.5 text-[9px] font-bold text-white bg-red-600 rounded mt-1 inline-block">
-          -{deal.discount_rate}%
-        </span>
-      );
-    }
-    return null;
-  };
-
-  // [신규 추가] 가격 또는 구독 정보 렌더링 로직
-  const renderPriceOrInfo = (deal: Deal) => {
-    // 1. 구독 서비스 (Xbox Game Pass)인 경우 -> 티어 & 플랫폼 표시
-    if (deal.xboxMeta) {
-      return (
-        <div className="flex flex-col items-start gap-0.5">
-          {/* 티어 정보 (예: Console, PC) */}
-          <span className="text-xs font-extrabold text-green-700 uppercase">
-            {deal.xboxMeta.game_pass_tier.replace(/,/g, " · ")}
-          </span>
-          {/* 플랫폼 정보 (예: Xbox Series X|S) */}
-          <span
-            className="text-[10px] text-gray-500 truncate max-w-full"
-            title={deal.platform}
-          >
-            {deal.platform.includes("Xbox") ? "Xbox Console" : deal.platform}
-          </span>
-        </div>
-      );
-    }
-
-    // 2. 일반 딜 / 무료 배포인 경우 -> 가격 표시
-    return (
-      <div className="flex flex-col items-start">
-        {deal.regular_price > deal.sale_price && deal.regular_price > 0 && (
-          <span className="text-[10px] text-gray-400 line-through">
-            ₩{deal.regular_price.toLocaleString()}
-          </span>
-        )}
-        <span className="text-blue-600 font-bold text-sm">
-          {deal.sale_price === 0
-            ? "무료"
-            : `₩${deal.sale_price.toLocaleString()}`}
-        </span>
-      </div>
-    );
   };
 
   return (
@@ -173,44 +74,10 @@ const PlatformRow = ({
         className="flex gap-4 overflow-x-auto pb-4 px-4 md:px-0 snap-x scrollbar-hide"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
+        {/* [수정] 컴포넌트로 렌더링 위임 */}
         {deals.map((deal) => (
-          <div
-            key={deal.id}
-            className="flex-none w-56 snap-start bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all group"
-          >
-            {/* 이미지 영역 */}
-            <div className="relative w-full h-32 bg-gray-200">
-              <Image
-                src={getImageSrc(deal)}
-                alt={deal.title}
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-300"
-                unoptimized={true}
-              />
-            </div>
-
-            {/* 텍스트 정보 영역 */}
-            <div className="p-3 flex flex-col h-[140px]">
-              <h4 className="text-sm font-bold text-gray-900 leading-tight line-clamp-2 mb-1 h-10">
-                {deal.title}
-              </h4>
-
-              <div className="mt-auto">
-                <div className="mb-2 min-h-[40px] flex flex-col justify-end">
-                  {renderPriceOrInfo(deal)}
-                  {renderBadges(deal)}
-                </div>
-
-                <a
-                  href={deal.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full text-center bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold py-1.5 rounded transition-colors"
-                >
-                  {deal.xboxMeta ? "플레이 하기" : "스토어 이동"}
-                </a>
-              </div>
-            </div>
+          <div key={deal.id} className="flex-none w-64 snap-start h-full">
+            <DealCard deal={deal} className="h-full" />
           </div>
         ))}
       </div>
@@ -218,7 +85,7 @@ const PlatformRow = ({
   );
 };
 
-// --- 3. 메인 컴포넌트 ---
+// --- Main Home 컴포넌트 ---
 export default function Home() {
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     free: {},
@@ -256,7 +123,7 @@ export default function Home() {
 
         addToGroup("free", platformName, deal);
       }
-      // 3. 할인 (정가 > 판매가)
+      // 3. 할인
       else if (deal.regular_price > deal.sale_price && deal.sale_price > 0) {
         let platformName = deal.platform;
         if (platformName.includes("Epic")) platformName = "Epic Games";
