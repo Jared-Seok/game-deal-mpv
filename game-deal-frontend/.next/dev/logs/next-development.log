@@ -1,2 +1,0 @@
-[00:00:00.668] Server  LOG      ✓ Ready in 487ms
-[00:00:03.281] Browser ERROR   uncaughtError: TypeError: deals.map is not a function. (In 'deals.map(_temp)', 'deals.map' is undefined)
