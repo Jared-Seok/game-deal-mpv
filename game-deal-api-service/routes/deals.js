@@ -18,35 +18,44 @@ router.get("/", async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
 
-    const { type, platform, search } = req.query;
+    // 1. 쿼리 파라미터 가져오기 (type을 소문자로 변환하여 안전하게 처리)
+    const rawType = req.query.type || "";
+    const type = rawType.toLowerCase().trim(); // "Free " -> "free"
+    const { platform, search } = req.query;
 
     // 기본 조건: 활성화된 딜만 조회
     const whereCondition = {
       is_active: true,
     };
 
-    // 1. [핵심] 딜 유형(Category)으로 필터링
-    // 프론트엔드 요청: type = 'free' | 'sub' | 'sale'
+    // 2. [핵심 수정] 딜 유형 필터링 로직 강화
+    // 입력값이 매칭되지 않으면 필터가 무시되어 전체가 조회되는 것을 방지
     if (type) {
-      if (type === "sub") {
-        // 구독 서비스 (Xbox Game Pass 등)
+      if (type === "sub" || type === "gamepass") {
+        // 구독 서비스
         whereCondition.deal_type = "GamePass";
       } else if (type === "free") {
-        // 무료 배포 (Epic, Steam, Ubisoft 등)
+        // 무료 배포
         whereCondition.deal_type = "Free";
       } else if (type === "sale") {
         // 일반 할인
         whereCondition.deal_type = "Sale";
+      } else {
+        // [중요] 이상한 type이 들어오면 아무것도 조회되지 않게 막거나, 에러 처리가 필요함
+        // 현재는 안전하게 빈 결과를 반환하도록 설정 (원치 않는 전체 노출 방지)
+        return res.json({
+          meta: { totalItems: 0, totalPages: 0, currentPage: page },
+          data: [],
+        });
       }
     }
 
-    // 2. 플랫폼 추가 필터링 (옵션)
-    // 예: 무료 게임 중에서 'Steam'만 보고 싶을 때
+    // 3. 플랫폼 추가 필터링
     if (platform) {
       whereCondition.platform = { [Op.iLike]: `%${platform}%` };
     }
 
-    // 3. 검색 기능 (타이틀)
+    // 4. 검색 기능
     if (search) {
       whereCondition.title = {
         [Op.iLike]: `%${search}%`,
@@ -58,32 +67,15 @@ router.get("/", async (req, res) => {
       where: whereCondition,
       limit: limit,
       offset: offset,
-      // 정렬: 최신 업데이트순, 그 다음 ID순
       order: [
         ["updatedAt", "DESC"],
         ["id", "DESC"],
       ],
       include: [
-        {
-          model: XboxMetadata,
-          as: "xboxMeta",
-          required: false,
-        },
-        {
-          model: EpicMetadata,
-          as: "epicMeta",
-          required: false,
-        },
-        {
-          model: SteamMetadata,
-          as: "steamMeta",
-          required: false,
-        },
-        {
-          model: UbisoftMetadata,
-          as: "ubiMeta",
-          required: false,
-        },
+        { model: XboxMetadata, as: "xboxMeta", required: false },
+        { model: EpicMetadata, as: "epicMeta", required: false },
+        { model: SteamMetadata, as: "steamMeta", required: false },
+        { model: UbisoftMetadata, as: "ubiMeta", required: false },
       ],
     });
 

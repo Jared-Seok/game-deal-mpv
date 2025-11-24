@@ -1,6 +1,8 @@
+// game-deal-frontend/app/page.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+// Deal 타입과 fetchDeals 함수 import
 import { fetchDeals, Deal } from "../lib/api";
 import DealCard from "../components/DealCard";
 
@@ -77,11 +79,11 @@ export default function Home() {
     const loadAllData = async () => {
       setLoading(true);
       try {
-        // API에서 카테고리별로 데이터를 병렬 요청
+        // [수정 핵심] API 호출 시 인자를 (카테고리, 옵션) 순서로 분리하여 전달
         const [freeData, subData, saleData] = await Promise.all([
-          fetchDeals({ type: "free", limit: 10 }),
-          fetchDeals({ type: "sub", limit: 10 }),
-          fetchDeals({ type: "sale", limit: 10 }),
+          fetchDeals("free", { limit: 10 }),
+          fetchDeals("sub", { limit: 10 }),
+          fetchDeals("sale", { limit: 10 }),
         ]);
 
         setFreeDeals(freeData);

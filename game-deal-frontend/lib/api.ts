@@ -1,6 +1,8 @@
 // game-deal-frontend/lib/api.ts
 
-// 메타데이터 인터페이스 정의
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+
 export interface EpicMetadata {
   is_free_to_keep: boolean;
 }
@@ -22,7 +24,6 @@ export interface UbisoftMetadata {
   has_giveaway_badge: boolean;
 }
 
-// 🚨 Deal 핵심 인터페이스 정의
 export interface Deal {
   id: number;
   platform: string;
@@ -35,42 +36,50 @@ export interface Deal {
   image_url: string;
   end_date: string | null;
   is_active: boolean;
-
-  // 플랫폼별 메타데이터 (백엔드 필드명과 동일한 snake_case 사용)
   epic_meta?: EpicMetadata;
   xbox_meta?: XboxMetadata;
   steam_meta?: SteamMetadata;
   ubi_meta?: UbisoftMetadata;
 }
 
-interface FetchDealsOptions {
+// 백엔드 응답 구조 타입 정의
+interface ApiResponse {
+  meta: any;
+  data: Deal[];
+}
+
+export interface FetchDealsOptions {
   limit?: number;
   include_meta?: "true" | "false" | string;
 }
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
-
-// 🚨 [수정] API 호출 함수: 메타데이터 옵션 처리 로직 포함
 export async function fetchDeals(
   category: string,
   options: FetchDealsOptions = {}
 ): Promise<Deal[]> {
+  // [핵심 수정] category를 소문자로 강제 변환하여 전송
+  const safeCategory = category ? category.toLowerCase().trim() : "";
+
   const params = new URLSearchParams({
-    type: category,
+    type: safeCategory,
     limit: options.limit ? options.limit.toString() : "1000",
-    // include_meta=true를 쿼리 파라미터로 전달
     include_meta: options.include_meta || "false",
   });
 
   const url = `${API_BASE_URL}/deals?${params.toString()}`;
 
-  const response = await fetch(url, { next: { revalidate: 60 * 60 } }); // 1시간마다 데이터 갱신 시도
+  try {
+    // 캐시 문제 방지를 위해 revalidate 시간 조정 및 no-store 옵션 고려 가능
+    const response = await fetch(url, { next: { revalidate: 0 } }); // 즉시 반영을 위해 0으로 설정 (테스트용)
 
-  if (!response.ok) {
-    throw new Error(`API 요청 실패: ${response.statusText}`);
+    if (!response.ok) {
+      throw new Error(`API 요청 실패: ${response.statusText}`);
+    }
+
+    const jsonResponse: ApiResponse = await response.json();
+    return jsonResponse.data || [];
+  } catch (error) {
+    console.error("Fetch deals error:", error);
+    return [];
   }
-
-  const data: Deal[] = await response.json();
-  return data;
 }
