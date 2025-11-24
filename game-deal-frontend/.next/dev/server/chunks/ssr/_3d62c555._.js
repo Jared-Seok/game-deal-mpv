@@ -556,7 +556,21 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$cards$2f$SaleD
 ;
 ;
 function DealCard({ deal, className = "" }) {
-    // 1. 구독(GamePass/Xbox) 여부 확인
+    // 1. [최우선] 무료 배포 게임인지 확인
+    // deal_type이 Free이거나, 가격이 0원이면서 구독 서비스(GamePass)가 아닌 경우
+    const isFreeGame = deal.deal_type === "Free" || deal.sale_price === 0 && deal.deal_type !== "GamePass" || deal.epicMeta?.is_free_to_keep === true;
+    if (isFreeGame) {
+        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$cards$2f$FreeDealCard$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+            deal: deal,
+            className: className
+        }, void 0, false, {
+            fileName: "[project]/components/DealCard.tsx",
+            lineNumber: 22,
+            columnNumber: 12
+        }, this);
+    }
+    // 2. [차순위] 구독 서비스(GamePass) 확인
+    // 플랫폼 이름에 Xbox가 있거나 deal_type이 GamePass인 경우
     const isGamePass = deal.deal_type === "GamePass" || deal.platform.includes("Xbox") || deal.xboxMeta !== undefined;
     if (isGamePass) {
         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$cards$2f$SubDealCard$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -564,29 +578,17 @@ function DealCard({ deal, className = "" }) {
             className: className
         }, void 0, false, {
             fileName: "[project]/components/DealCard.tsx",
-            lineNumber: 21,
+            lineNumber: 33,
             columnNumber: 12
         }, this);
     }
-    // 2. 무료 배포 게임 여부 확인 (GamePass 제외)
-    const isFreeGame = deal.deal_type === "Free" || deal.sale_price === 0 || deal.epicMeta?.is_free_to_keep === true;
-    if (isFreeGame) {
-        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$cards$2f$FreeDealCard$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
-            deal: deal,
-            className: className
-        }, void 0, false, {
-            fileName: "[project]/components/DealCard.tsx",
-            lineNumber: 31,
-            columnNumber: 12
-        }, this);
-    }
-    // 3. 그 외는 일반 할인/판매 게임
+    // 3. [기본] 일반 할인 게임
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$cards$2f$SaleDealCard$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
         deal: deal,
         className: className
     }, void 0, false, {
         fileName: "[project]/components/DealCard.tsx",
-        lineNumber: 35,
+        lineNumber: 37,
         columnNumber: 10
     }, this);
 }
@@ -594,14 +596,15 @@ function DealCard({ deal, className = "" }) {
 "[project]/components/DealsPage.tsx [app-ssr] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
+// components/DealsPage.tsx
 __turbopack_context__.s([
     "default",
     ()=>DealsPage
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react.js [app-ssr] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/api.ts [app-ssr] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$DealCard$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/DealCard.tsx [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/api.ts [app-ssr] (ecmascript)"); // API 유틸리티 사용
+var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$DealCard$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/DealCard.tsx [app-ssr] (ecmascript)"); // 통합된 DealCard 컴포넌트
 "use client";
 ;
 ;
@@ -612,11 +615,12 @@ function DealsPage({ title, category }) {
     const [loading, setLoading] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(true);
     const [searchTerm, setSearchTerm] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("");
     const [sortOrder, setSortOrder] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("az");
+    // [핵심] 메인 페이지와 동일한 데이터 페칭 로직
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         const loadData = async ()=>{
             setLoading(true);
             try {
-                // 카테고리에 맞는 데이터만 API에 요청 (limit을 넉넉하게 설정)
+                // API에 직접 category(type)를 전달하여 필요한 데이터만 요청
                 const data = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["fetchDeals"])({
                     type: category,
                     limit: 1000
@@ -632,13 +636,19 @@ function DealsPage({ title, category }) {
     }, [
         category
     ]);
-    // 클라이언트 사이드 검색 및 정렬 (받아온 데이터 내에서 수행)
+    // 클라이언트 사이드 검색 및 정렬
     const filteredDeals = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>{
         let result = deals.filter((deal)=>deal.title.toLowerCase().includes(searchTerm.toLowerCase()));
         if (sortOrder === "az") {
-            result.sort((a, b)=>a.title.localeCompare(b.title));
+            result.sort((a, b)=>{
+                // 한글 > 영어 순 정렬 로직
+                const isKoA = /[가-힣]/.test(a.title);
+                const isKoB = /[가-힣]/.test(b.title);
+                if (isKoA === isKoB) return a.title.localeCompare(b.title);
+                return isKoA ? -1 : 1;
+            });
         }
-        // 필요하다면 'newest' 정렬 로직 추가 가능
+        // 필요 시 'newest' 정렬 추가 가능
         return result;
     }, [
         deals,
@@ -651,7 +661,7 @@ function DealsPage({ title, category }) {
             className: "max-w-7xl mx-auto px-4 md:px-8 py-8",
             children: [
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                    className: "flex flex-col md:flex-row justify-between items-end mb-8 gap-4",
+                    className: "flex flex-col md:flex-row justify-between items-end mb-8 gap-4 mt-8",
                     children: [
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             children: [
@@ -660,7 +670,7 @@ function DealsPage({ title, category }) {
                                     children: title
                                 }, void 0, false, {
                                     fileName: "[project]/components/DealsPage.tsx",
-                                    lineNumber: 54,
+                                    lineNumber: 62,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -673,20 +683,20 @@ function DealsPage({ title, category }) {
                                             children: filteredDeals.length
                                         }, void 0, false, {
                                             fileName: "[project]/components/DealsPage.tsx",
-                                            lineNumber: 59,
+                                            lineNumber: 67,
                                             columnNumber: 15
                                         }, this),
                                         "개의 게임을 찾았습니다."
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/DealsPage.tsx",
-                                    lineNumber: 57,
+                                    lineNumber: 65,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/DealsPage.tsx",
-                            lineNumber: 53,
+                            lineNumber: 61,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -697,39 +707,39 @@ function DealsPage({ title, category }) {
                                     placeholder: "게임 제목 검색...",
                                     value: searchTerm,
                                     onChange: (e)=>setSearchTerm(e.target.value),
-                                    className: "flex-1 md:w-64 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 outline-none"
+                                    className: "flex-1 md:w-64 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 outline-none transition-shadow"
                                 }, void 0, false, {
                                     fileName: "[project]/components/DealsPage.tsx",
-                                    lineNumber: 67,
+                                    lineNumber: 75,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("select", {
                                     value: sortOrder,
                                     onChange: (e)=>setSortOrder(e.target.value),
-                                    className: "px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 outline-none bg-white",
+                                    className: "px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 outline-none bg-white cursor-pointer",
                                     children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
                                         value: "az",
                                         children: "가나다순 (A-Z)"
                                     }, void 0, false, {
                                         fileName: "[project]/components/DealsPage.tsx",
-                                        lineNumber: 79,
+                                        lineNumber: 87,
                                         columnNumber: 15
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/components/DealsPage.tsx",
-                                    lineNumber: 74,
+                                    lineNumber: 82,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/DealsPage.tsx",
-                            lineNumber: 66,
+                            lineNumber: 74,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/DealsPage.tsx",
-                    lineNumber: 52,
+                    lineNumber: 60,
                     columnNumber: 9
                 }, this),
                 loading ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -738,12 +748,12 @@ function DealsPage({ title, category }) {
                         className: "animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"
                     }, void 0, false, {
                         fileName: "[project]/components/DealsPage.tsx",
-                        lineNumber: 87,
+                        lineNumber: 95,
                         columnNumber: 13
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/components/DealsPage.tsx",
-                    lineNumber: 86,
+                    lineNumber: 94,
                     columnNumber: 11
                 }, this) : filteredDeals.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                     className: "text-center py-32 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50",
@@ -752,12 +762,12 @@ function DealsPage({ title, category }) {
                         children: "조건에 맞는 게임이 없습니다."
                     }, void 0, false, {
                         fileName: "[project]/components/DealsPage.tsx",
-                        lineNumber: 91,
+                        lineNumber: 99,
                         columnNumber: 13
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/components/DealsPage.tsx",
-                    lineNumber: 90,
+                    lineNumber: 98,
                     columnNumber: 11
                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                     className: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6",
@@ -765,23 +775,23 @@ function DealsPage({ title, category }) {
                             deal: deal
                         }, deal.id, false, {
                             fileName: "[project]/components/DealsPage.tsx",
-                            lineNumber: 96,
+                            lineNumber: 104,
                             columnNumber: 15
                         }, this))
                 }, void 0, false, {
                     fileName: "[project]/components/DealsPage.tsx",
-                    lineNumber: 94,
+                    lineNumber: 102,
                     columnNumber: 11
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/components/DealsPage.tsx",
-            lineNumber: 50,
+            lineNumber: 58,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/DealsPage.tsx",
-        lineNumber: 49,
+        lineNumber: 57,
         columnNumber: 5
     }, this);
 }

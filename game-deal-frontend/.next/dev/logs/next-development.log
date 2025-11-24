@@ -1,13 +1,26 @@
-[00:00:00.926] Server  LOG      ✓ Ready in 688ms
-[00:00:03.791] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
-[00:00:03.791] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
-[00:00:03.791] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
-[00:00:14.628] Browser ERROR   uncaughtError: TypeError: undefined is not an object (evaluating 'deal.deal_type')
-[00:00:34.108] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
-[00:00:34.108] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
-[00:00:34.108] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
-[00:00:35.364] Browser ERROR   uncaughtError: TypeError: undefined is not an object (evaluating 'deal.deal_type')
-[00:00:39.972] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
-[00:00:39.972] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
-[00:00:39.972] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
-[00:00:41.668] Browser ERROR   uncaughtError: TypeError: undefined is not an object (evaluating 'deal.deal_type')
+[00:00:00.908] Server  LOG      ✓ Ready in 695ms
+[00:00:03.639] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
+[00:00:03.639] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
+[00:00:03.639] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
+[00:00:12.375] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=free
+[00:00:12.375] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=free
+[00:00:15.108] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=sale
+[00:00:15.108] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=sale
+[00:00:15.998] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=sub
+[00:00:15.998] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=sub
+[00:00:25.743] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
+[00:00:25.743] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
+[00:00:25.743] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
+[00:00:25.743] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
+[00:00:25.743] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
+[00:00:25.743] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
+[00:00:31.130] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=sub
+[00:00:31.130] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=sub
+[00:00:32.684] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=free
+[00:00:32.684] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=1000&type=free
+[00:00:34.718] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
+[00:00:34.718] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
+[00:00:34.718] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
+[00:00:34.718] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
+[00:00:34.718] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
+[00:00:34.718] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
