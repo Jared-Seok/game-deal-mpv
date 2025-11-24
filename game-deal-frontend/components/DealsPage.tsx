@@ -1,9 +1,10 @@
-// components/DealsPage.tsx
+// game-deal-frontend/components/DealsPage.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { fetchDeals, Deal } from "../lib/api"; // API 유틸리티 사용
-import DealCard from "./DealCard"; // 통합된 DealCard 컴포넌트
+// 🚨 [수정 1] Deal 타입은 lib/api.ts에서 가져옵니다.
+import { fetchDeals, Deal } from "../lib/api";
+import DealCard from "./DealCard";
 
 interface DealsPageProps {
   title: string;
@@ -21,8 +22,12 @@ export default function DealsPage({ title, category }: DealsPageProps) {
     const loadData = async () => {
       setLoading(true);
       try {
-        // API에 직접 category(type)를 전달하여 필요한 데이터만 요청
-        const data = await fetchDeals({ type: category, limit: 1000 });
+        // 🚨 [수정 2] 메타데이터를 포함하도록 옵션 객체 수정: include_meta: 'true' 추가
+        // API는 category와 options 객체를 받습니다.
+        const data = await fetchDeals(category, {
+          limit: 1000,
+          include_meta: "true",
+        });
         setDeals(data);
       } catch (error) {
         console.error("상세 페이지 데이터 로드 실패", error);

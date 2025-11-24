@@ -1,4 +1,2 @@
-[00:00:00.979] Server  LOG      ✓ Ready in 733ms
-[00:00:04.048] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=free
-[00:00:04.048] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sub
-[00:00:04.048] Browser LOG     Fetching deals from: http://localhost:4000/api/v1/deals?limit=10&type=sale
+[00:00:00.668] Server  LOG      ✓ Ready in 487ms
+[00:00:03.281] Browser ERROR   uncaughtError: TypeError: deals.map is not a function. (In 'deals.map(_temp)', 'deals.map' is undefined)
