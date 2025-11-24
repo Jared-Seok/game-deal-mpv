@@ -26,6 +26,6 @@ module.exports = {
   Deal,
   XboxMetadata,
   EpicMetadata,
-  SteamMetadata, // 👈 Export 필수
-  UbisoftMetadata, // 👈 Export 필수
+  SteamMetadata, 
+  UbisoftMetadata, 
 };
