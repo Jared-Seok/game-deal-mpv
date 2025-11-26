@@ -46,20 +46,19 @@ def get_total_sales_count() -> int:
         print(f"ERROR: Failed to fetch initial sales count: {e}")
         return 0
 
-def fetch_steam_sales(limit=300) -> List[dict]:
+def fetch_steam_sales() -> List[dict]:
     """스팀 할인 게임 목록을 가져와 파싱합니다."""
     total_count = get_total_sales_count()
     if total_count == 0:
         print("  - No sales found or initial API fetch failed.")
         return []
         
-    actual_limit = min(limit, total_count)
     all_deals = []
     start = 0
     
-    print(f"🚂 Fetching Steam sales (Target: {actual_limit} of {total_count} items)...")
+    print(f"🚂 Fetching Steam sales (Target: {total_count} items)...")
 
-    while len(all_deals) < actual_limit:
+    while len(all_deals) < total_count:
         try:
             url = STEAM_SEARCH_URL.format(start=start)
             response = requests.get(url, headers=HEADERS)
@@ -98,7 +97,7 @@ def fetch_steam_sales(limit=300) -> List[dict]:
             print(f"❌ Error during Steam crawling loop: {e}. Stopping.")
             break
             
-    return all_deals[:actual_limit]
+    return all_deals
 
 def parse_steam_row(row):
     """HTML 행 하나에서 게임 정보를 추출하고, deal_data와 meta_data로 분리합니다."""
@@ -190,12 +189,21 @@ def crawl_steam():
     deals_structured = fetch_steam_sales()
     if not deals_structured:
         return 0
+
+    # [Fix] Filter out duplicates based on steam_app_id before saving
+    unique_deals = {}
+    for item in deals_structured:
+        app_id = item["meta_data"]["steam_app_id"]
+        if app_id not in unique_deals:
+            unique_deals[app_id] = item
+
+    print(f"  - Found {len(deals_structured)} raw deals, filtered down to {len(unique_deals)} unique deals.")
         
     count_saved = 0
     count_updated = 0
     
     with get_db_context() as db:
-        for item in deals_structured:
+        for item in unique_deals.values():
             try:
                 result = upsert_deal(
                     db,

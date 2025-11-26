@@ -2,22 +2,33 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## What's New
+
+- **2025-11-26:**
+  - **New Crawler: EA Play**
+    - Added `ea_play_crawler.py` to scrape the EA Play and EA Play Pro catalogs.
+    - Uses Playwright to handle dynamic, JavaScript-rendered content on the source website.
+    - New `EAPlayMetadata` model and `ea_play_metadata` table to store tier information.
+  - **Frontend Update: Subscription Section**
+    - The main page now groups Xbox Game Pass and EA Play deals under a "Subscription Services" section.
+    - Updated `SubDealCard.tsx` to handle EA Play placeholder images.
+
 ## Project Overview
 
-This is a **Game Deal Tracker** MVP that aggregates gaming deals from multiple platforms (Steam, Epic Games, Xbox Game Pass, Ubisoft). The system consists of three services:
+This is a **Game Deal Tracker** MVP that aggregates gaming deals from multiple platforms (Steam, Epic Games, Xbox Game Pass, Ubisoft, and EA Play). The system consists of three services:
 
-1. **game-deal-tracker** (Python) - Web crawlers that scrape deal data
-2. **game-deal-api-service** (Node.js/Express) - REST API serving deal data
-3. **game-deal-frontend** (Next.js/React) - User-facing web application
+1.  **game-deal-tracker** (Python) - Web crawlers that scrape deal data
+2.  **game-deal-api-service** (Node.js/Express) - REST API serving deal data
+3.  **game-deal-frontend** (Next.js/React) - User-facing web application
 
 All three services share a single PostgreSQL database (`game_deals_db`).
 
 ## Architecture
 
 ### Data Flow
-1. Python crawlers scrape platforms → Insert/update deals in PostgreSQL via SQLAlchemy
-2. Node.js API reads from PostgreSQL via Sequelize → Serves JSON to frontend
-3. Next.js frontend fetches from API → Displays categorized deals
+1.  Python crawlers scrape platforms → Insert/update deals in PostgreSQL via SQLAlchemy
+2.  Node.js API reads from PostgreSQL via Sequelize → Serves JSON to frontend
+3.  Next.js frontend fetches from API → Displays categorized deals
 
 ### Database Schema
 - **deals** table (shared by all services): Core deal information
@@ -26,6 +37,7 @@ All three services share a single PostgreSQL database (`game_deals_db`).
   - `xbox_metadata` (deal_id FK)
   - `steam_metadata` (deal_id FK, includes review data)
   - `ubisoft_metadata` (deal_id FK)
+  - `ea_play_metadata` (deal_id FK)
 
 The Python ORM (SQLAlchemy) defines the schema in `game-deal-tracker/db/models.py`. The Node.js service uses Sequelize models that mirror this schema but do NOT create/alter tables (it only reads).
 
@@ -33,6 +45,7 @@ The Python ORM (SQLAlchemy) defines the schema in `game-deal-tracker/db/models.p
 - **"Free"** - Epic Games giveaways, Ubisoft freebies
 - **"Sale"** - Steam discounted games
 - **"GamePass"** - Xbox Game Pass subscription games
+- **"Subscription"** - EA Play subscription games
 
 ## Common Commands
 
@@ -50,6 +63,7 @@ python main.py
 # Run individual crawler for testing
 python crawlers/steam_crawler.py
 python crawlers/epic_crawler.py
+python crawlers/ea_play_crawler.py
 
 # Reset database (WARNING: deletes all data)
 python reset_db.py
@@ -94,32 +108,32 @@ npm run lint
 
 When adding crawlers for new platforms (e.g., GOG, PlayStation):
 
-1. **Create metadata model** in `game-deal-tracker/db/models.py`:
-   ```python
-   class NewPlatformMetadata(Base):
-       __tablename__ = "newplatform_metadata"
-       deal_id = Column(Integer, ForeignKey('deals.id'), primary_key=True)
-       # platform-specific fields
-       deal = relationship("Deal", back_populates="newplatform_meta")
-   ```
-   Add relationship to `Deal` model: `newplatform_meta = relationship(...)`
+1.  **Create metadata model** in `game-deal-tracker/db/models.py`:
+    ```python
+    class NewPlatformMetadata(Base):
+        __tablename__ = "newplatform_metadata"
+        deal_id = Column(Integer, ForeignKey('deals.id'), primary_key=True)
+        # platform-specific fields
+        deal = relationship("Deal", back_populates="newplatform_meta")
+    ```
+    Add relationship to `Deal` model: `newplatform_meta = relationship(...)`
 
-2. **Create crawler** in `game-deal-tracker/crawlers/newplatform_crawler.py`:
-   - Implement `crawl_newplatform()` function
-   - Return structured data with `deal_data` and `meta_data` dicts
-   - Use `upsert_deal()` from `db.crud` with context manager pattern
+2.  **Create crawler** in `game-deal-tracker/crawlers/newplatform_crawler.py`:
+    - Implement `crawl_newplatform()` function
+    - Return structured data with `deal_data` and `meta_data` dicts
+    - Use `upsert_deal()` from `db.crud` with context manager pattern
 
-3. **Register in scheduler** (`game-deal-tracker/main.py`):
-   - Import new crawler function
-   - Add to `run_all_crawlers()`
+3.  **Register in scheduler** (`game-deal-tracker/main.py`):
+    - Import new crawler function
+    - Add to `run_all_crawlers()`
 
-4. **Create Sequelize model** in `game-deal-api-service/models/NewPlatformMetadata.js`:
-   - Mirror Python metadata table structure
-   - Use `tableName` and `timestamps: false`
-   - Define association in `models/index.js`
+4.  **Create Sequelize model** in `game-deal-api-service/models/NewPlatformMetadata.js`:
+    - Mirror Python metadata table structure
+    - Use `tableName` and `timestamps: false`
+    - Define association in `models/index.js`
 
-5. **Update API route** in `game-deal-api-service/routes/deals.js`:
-   - Add to `include` array for eager loading
+5.  **Update API route** in `game-deal-api-service/routes/deals.js`:
+    - Add to `include` array for eager loading
 
 ### Database Context Management
 
@@ -160,8 +174,8 @@ The `/deals` endpoint supports filtering:
 ### Frontend Type Definitions
 
 Deal types are defined in `game-deal-frontend/lib/api.ts`. When adding new metadata fields, update both:
-1. TypeScript `Deal` interface
-2. Sequelize model associations in API service
+1.  TypeScript `Deal` interface
+2.  Sequelize model associations in API service
 
 ## Project-Specific Patterns
 
@@ -176,7 +190,7 @@ All crawlers must return data in this format:
         "regular_price": float,
         "sale_price": float,
         "discount_rate": int,
-        "deal_type": "Free|Sale|GamePass",
+        "deal_type": "Free|Sale|GamePass|Subscription",
         "image_url": str,
         "is_active": bool,
         "end_date": datetime or None
@@ -189,9 +203,9 @@ All crawlers must return data in this format:
 
 ### Upsert Logic
 The `upsert_deal()` function (in `db/crud.py`) uses a two-phase lookup:
-1. First checks custom `unique_filters` (e.g., title matching for Xbox)
-2. Falls back to URL matching to prevent duplicates
-3. Updates existing deals or creates new ones with metadata
+1.  First checks custom `unique_filters` (e.g., title matching for Xbox)
+2.  Falls back to URL matching to prevent duplicates
+3.  Updates existing deals or creates new ones with metadata
 
 ### Crawler Error Handling
 Crawlers should:

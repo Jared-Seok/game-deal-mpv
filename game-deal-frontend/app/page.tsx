@@ -128,7 +128,7 @@ export default function Home() {
         const [freeData, allSubData, saleData] = await Promise.all([
           fetchDeals("free", { limit: 10 }),
           fetchDeals("sub", { limit: 1000 }), // Fetch all subscription deals
-          fetchDeals("sale", { limit: 10 }),
+          fetchDeals("sale", { limit: 10, include_meta: "true" }),
         ]);
 
         setFreeDeals(freeData);
