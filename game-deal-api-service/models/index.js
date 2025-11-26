@@ -5,6 +5,7 @@ const EpicMetadata = require("./EpicMetadata");
 // 👇 신규 모델 Import
 const SteamMetadata = require("./SteamMetadata");
 const UbisoftMetadata = require("./UbisoftMetadata");
+const EAPlayMetadata = require("./EAPlayMetadata");
 
 // Relationships
 Deal.hasOne(XboxMetadata, { foreignKey: "deal_id", as: "xboxMeta" });
@@ -21,11 +22,16 @@ SteamMetadata.belongsTo(Deal, { foreignKey: "deal_id" });
 Deal.hasOne(UbisoftMetadata, { foreignKey: "deal_id", as: "ubiMeta" });
 UbisoftMetadata.belongsTo(Deal, { foreignKey: "deal_id" });
 
+// 👇 EA Play 관계 설정
+Deal.hasOne(EAPlayMetadata, { foreignKey: "deal_id", as: "eaPlayMeta" });
+EAPlayMetadata.belongsTo(Deal, { foreignKey: "deal_id" });
+
 module.exports = {
   sequelize,
   Deal,
   XboxMetadata,
   EpicMetadata,
-  SteamMetadata, 
-  UbisoftMetadata, 
+  SteamMetadata,
+  UbisoftMetadata,
+  EAPlayMetadata,
 };

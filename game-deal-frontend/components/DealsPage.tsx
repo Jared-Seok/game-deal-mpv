@@ -17,6 +17,10 @@ export default function DealsPage({ title, category }: DealsPageProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState<"az" | "newest">("az");
 
+  // Tab and tier filtering for subscription page
+  const [activeTab, setActiveTab] = useState<"all" | "xbox" | "ea">("all");
+  const [activeTier, setActiveTier] = useState<string>("all");
+
   // [핵심] 메인 페이지와 동일한 데이터 페칭 로직
   useEffect(() => {
     const loadData = async () => {
@@ -38,12 +42,68 @@ export default function DealsPage({ title, category }: DealsPageProps) {
     loadData();
   }, [category]);
 
-  // 클라이언트 사이드 검색 및 정렬
+  // Reset tier filter when tab changes
+  useEffect(() => {
+    setActiveTier("all");
+  }, [activeTab]);
+
+  // Extract available tiers based on active tab
+  const availableTiers = useMemo(() => {
+    if (category !== "sub") return [];
+
+    const tierSet = new Set<string>();
+
+    deals.forEach((deal) => {
+      if (activeTab === "all" || activeTab === "xbox") {
+        if (deal.deal_type === "GamePass" && deal.xboxMeta?.game_pass_tier) {
+          deal.xboxMeta.game_pass_tier.split(",").forEach((tier) => {
+            tierSet.add(tier.trim());
+          });
+        }
+      }
+      if (activeTab === "all" || activeTab === "ea") {
+        if (deal.deal_type === "Subscription" && deal.eaPlayMeta?.ea_play_tier) {
+          deal.eaPlayMeta.ea_play_tier.split(",").forEach((tier) => {
+            tierSet.add(tier.trim());
+          });
+        }
+      }
+    });
+
+    return Array.from(tierSet).sort();
+  }, [deals, activeTab, category]);
+
+  // 클라이언트 사이드 검색, 탭, 티어, 정렬
   const filteredDeals = useMemo(() => {
-    let result = deals.filter((deal) =>
+    let result = deals;
+
+    // Tab filtering (subscription page only)
+    if (category === "sub") {
+      if (activeTab === "xbox") {
+        result = result.filter((d) => d.deal_type === "GamePass");
+      } else if (activeTab === "ea") {
+        result = result.filter((d) => d.deal_type === "Subscription");
+      }
+    }
+
+    // Tier filtering (subscription page only)
+    if (category === "sub" && activeTier !== "all") {
+      result = result.filter((deal) => {
+        if (deal.deal_type === "GamePass") {
+          return deal.xboxMeta?.game_pass_tier?.includes(activeTier);
+        } else if (deal.deal_type === "Subscription") {
+          return deal.eaPlayMeta?.ea_play_tier?.includes(activeTier);
+        }
+        return false;
+      });
+    }
+
+    // Search filtering
+    result = result.filter((deal) =>
       deal.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Sorting
     if (sortOrder === "az") {
       result.sort((a, b) => {
         // 한글 > 영어 순 정렬 로직
@@ -56,7 +116,7 @@ export default function DealsPage({ title, category }: DealsPageProps) {
     // 필요 시 'newest' 정렬 추가 가능
 
     return result;
-  }, [deals, searchTerm, sortOrder]);
+  }, [deals, searchTerm, sortOrder, activeTab, activeTier, category]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -93,6 +153,83 @@ export default function DealsPage({ title, category }: DealsPageProps) {
             </select>
           </div>
         </div>
+
+        {/* Tab Navigation (Subscription Page Only) */}
+        {category === "sub" && (
+          <div className="mb-6">
+            <div className="flex gap-2 border-b border-gray-200">
+              <button
+                onClick={() => setActiveTab("all")}
+                className={`px-4 py-2 font-semibold text-sm transition-colors border-b-2 ${
+                  activeTab === "all"
+                    ? "border-gray-900 text-gray-900"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                전체
+              </button>
+              <button
+                onClick={() => setActiveTab("xbox")}
+                className={`px-4 py-2 font-semibold text-sm transition-colors border-b-2 ${
+                  activeTab === "xbox"
+                    ? "border-green-600 text-green-700"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                🎮 Xbox Game Pass
+              </button>
+              <button
+                onClick={() => setActiveTab("ea")}
+                className={`px-4 py-2 font-semibold text-sm transition-colors border-b-2 ${
+                  activeTab === "ea"
+                    ? "border-orange-600 text-orange-700"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                🎯 EA Play
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Tier Filtering Pills (Subscription Page Only) */}
+        {category === "sub" && availableTiers.length > 0 && (
+          <div className="mb-6">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setActiveTier("all")}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                  activeTier === "all"
+                    ? activeTab === "xbox"
+                      ? "bg-green-600 text-white"
+                      : activeTab === "ea"
+                      ? "bg-orange-600 text-white"
+                      : "bg-gray-900 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                전체 티어
+              </button>
+              {availableTiers.map((tier) => (
+                <button
+                  key={tier}
+                  onClick={() => setActiveTier(tier)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors uppercase ${
+                    activeTier === tier
+                      ? activeTab === "xbox"
+                        ? "bg-green-600 text-white"
+                        : activeTab === "ea"
+                        ? "bg-orange-600 text-white"
+                        : "bg-gray-900 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {tier}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 콘텐츠 영역 */}
         {loading ? (

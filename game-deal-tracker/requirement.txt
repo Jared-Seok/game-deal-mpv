@@ -9,4 +9,3 @@ SQLAlchemy==2.0.44
 typing_extensions==4.15.0
 urllib3==2.5.0
 schedule
-

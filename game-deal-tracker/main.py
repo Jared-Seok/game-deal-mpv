@@ -8,6 +8,7 @@ from crawlers.xbox_gamepass_crawler import crawl_xbox_gamepass
 from crawlers.epic_crawler import crawl_epic
 from crawlers.ubisoft_crawler import crawl_ubisoft
 from crawlers.steam_crawler import crawl_steam  # [Mod] 스팀 크롤러 임포트
+from crawlers.ea_play_crawler import crawl_ea_play  # [Mod] EA Play 크롤러 임포트
 
 def init_db():
     print("📦 Initializing Database...")
@@ -17,19 +18,22 @@ def init_db():
 
 def run_all_crawlers():
     print("\n🚀 Starting All Crawlers...")
-    
+
     # 1. Xbox Game Pass
     crawl_xbox_gamepass()
-    
+
     # 2. Epic Games Free
     crawl_epic()
-    
+
     # 3. Ubisoft Free
     crawl_ubisoft()
 
     # 4. [Mod] Steam Sales (할인 정보)
     crawl_steam()
-    
+
+    # 5. [Mod] EA Play Subscription (구독 서비스)
+    crawl_ea_play()
+
     print("✅ All crawling tasks finished.\n")
 
 def main():

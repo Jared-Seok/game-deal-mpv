@@ -24,6 +24,13 @@ export interface UbisoftMetadata {
   has_giveaway_badge: boolean;
 }
 
+export interface EAPlayMetadata {
+  is_ea_play: boolean;
+  ea_play_tier: string;
+  platform_availability: string;
+  removal_date: string | null;
+}
+
 export interface Deal {
   id: number;
   platform: string;
@@ -32,7 +39,7 @@ export interface Deal {
   regular_price: number;
   sale_price: number;
   discount_rate: number;
-  deal_type: "Free" | "Sale" | "GamePass" | string;
+  deal_type: "Free" | "Sale" | "GamePass" | "Subscription" | string;
   image_url: string;
   end_date: string | null;
   is_active: boolean;
@@ -40,6 +47,7 @@ export interface Deal {
   xboxMeta?: XboxMetadata;
   steamMeta?: SteamMetadata;
   ubiMeta?: UbisoftMetadata;
+  eaPlayMeta?: EAPlayMetadata;
 }
 
 // 백엔드 응답 구조 타입 정의

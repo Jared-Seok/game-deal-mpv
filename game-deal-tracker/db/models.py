@@ -27,8 +27,9 @@ class Deal(Base):
     # 🚨 플랫폼별 메타데이터와의 관계 설정 (1:1 관계)
     epic_meta = relationship("EpicMetadata", back_populates="deal", uselist=False)
     xbox_meta = relationship("XboxMetadata", back_populates="deal", uselist=False)
-    steam_meta = relationship("SteamMetadata", back_populates="deal", uselist=False) 
-    ubi_meta = relationship("UbisoftMetadata", back_populates="deal", uselist=False) 
+    steam_meta = relationship("SteamMetadata", back_populates="deal", uselist=False)
+    ubi_meta = relationship("UbisoftMetadata", back_populates="deal", uselist=False)
+    ea_play_meta = relationship("EAPlayMetadata", back_populates="deal", uselist=False) 
 
     def __repr__(self):
         return f"<Deal(title='{self.title}', platform='{self.platform}')>"
@@ -82,16 +83,31 @@ class SteamMetadata(Base):
         
 class UbisoftMetadata(Base):
     __tablename__ = "ubisoft_metadata"
-    
+
     deal_id = Column(Integer, ForeignKey('deals.id'), primary_key=True)
-    
+
     # 유비소프트 특화 정보
     is_freeplay = Column(Boolean, default=False)      # 체험판/주말무료 여부
     has_giveaway_badge = Column(Boolean, default=False) # 정식 배포 배지 유무
-    
+
     deal = relationship("Deal", back_populates="ubi_meta")
 
     def __repr__(self):
         return f"<UbisoftMetadata(deal_id={self.deal_id}, giveaway={self.has_giveaway_badge})>"
-        
-# 🚨 참고: Steam, Ubisoft Metadata 테이블도 유사한 구조로 추가 예정
+
+# 2-E. EA Play Metadata (EA Play 전용 정보)
+class EAPlayMetadata(Base):
+    __tablename__ = "ea_play_metadata"
+
+    deal_id = Column(Integer, ForeignKey('deals.id'), primary_key=True)
+
+    # EA Play 특화 정보
+    is_ea_play = Column(Boolean, default=True)  # EA Play 서비스 여부
+    ea_play_tier = Column(String, nullable=True)  # "EA Play", "EA Play Pro", or "EA Play, EA Play Pro"
+    platform_availability = Column(String, nullable=True)  # "PC", "Console", or "PC, Console"
+    removal_date = Column(DateTime, nullable=True)  # 카탈로그에서 제거되는 날짜
+
+    deal = relationship("Deal", back_populates="ea_play_meta")
+
+    def __repr__(self):
+        return f"<EAPlayMetadata(deal_id={self.deal_id}, tier={self.ea_play_tier})>"

@@ -21,16 +21,21 @@ export default function DealCard({ deal, className = "" }: DealCardProps) {
     return <SubDealCard deal={deal} className={className} />;
   }
 
-  // 2. 무료 배포 게임 확인
+  // 2. EA Play 및 기타 구독 서비스 확인
+  if (deal.deal_type === "Subscription") {
+    return <SubDealCard deal={deal} className={className} />;
+  }
+
+  // 3. 무료 배포 게임 확인
   if (deal.deal_type === "Free") {
     return <FreeDealCard deal={deal} className={className} />;
   }
 
-  // 3. 할인 게임 확인 (Sale 타입 또는 할인율이 있는 경우)
+  // 4. 할인 게임 확인 (Sale 타입 또는 할인율이 있는 경우)
   if (deal.deal_type === "Sale" || deal.discount_rate > 0) {
     return <SaleDealCard deal={deal} className={className} />;
   }
 
-  // 4. 기타 경우 (폴백)
+  // 5. 기타 경우 (폴백)
   return <SaleDealCard deal={deal} className={className} />;
 }

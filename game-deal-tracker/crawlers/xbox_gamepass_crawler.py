@@ -1,5 +1,11 @@
 # crawlers/xbox_gamepass_crawler.py
 
+import sys
+import os
+
+# 부모 디렉터리를 sys.path에 추가
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import requests
 from datetime import datetime, timezone
 # 🚨 [수정 1] 외부에서 필요한 함수를 사용하기 위해 임포트 추가 (config/database.py와 db/crud.py가 이미 수정되었어야 함)

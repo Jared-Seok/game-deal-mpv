@@ -8,6 +8,7 @@ const {
   EpicMetadata,
   SteamMetadata,
   UbisoftMetadata,
+  EAPlayMetadata,
 } = require("../models");
 const { Op } = require("sequelize");
 
@@ -31,9 +32,9 @@ router.get("/", async (req, res) => {
     // 2. [핵심 수정] 딜 유형 필터링 로직 강화
     // 입력값이 매칭되지 않으면 필터가 무시되어 전체가 조회되는 것을 방지
     if (type) {
-      if (type === "sub" || type === "gamepass") {
-        // 구독 서비스
-        whereCondition.deal_type = "GamePass";
+      if (type === "sub" || type === "gamepass" || type === "subscription") {
+        // 구독 서비스 (Xbox Game Pass와 EA Play 포함)
+        whereCondition.deal_type = { [Op.in]: ["GamePass", "Subscription"] };
       } else if (type === "free") {
         // 무료 배포
         whereCondition.deal_type = "Free";
@@ -76,6 +77,7 @@ router.get("/", async (req, res) => {
         { model: EpicMetadata, as: "epicMeta", required: false },
         { model: SteamMetadata, as: "steamMeta", required: false },
         { model: UbisoftMetadata, as: "ubiMeta", required: false },
+        { model: EAPlayMetadata, as: "eaPlayMeta", required: false },
       ],
     });
 

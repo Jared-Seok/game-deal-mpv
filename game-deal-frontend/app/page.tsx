@@ -11,10 +11,12 @@ const SectionRow = ({
   title,
   desc,
   deals,
+  isSubSection = false,
 }: {
   title: string;
   desc: string;
   deals: Deal[];
+  isSubSection?: boolean;
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -31,10 +33,16 @@ const SectionRow = ({
   if (deals.length === 0) return null;
 
   return (
-    <section className="mb-16 pt-20 -mt-20">
+    <section className={isSubSection ? "mb-8" : "mb-16 pt-20 -mt-20"}>
       <div className="mb-6 border-b border-gray-200 pb-4 flex justify-between items-end">
         <div>
-          <h2 className="text-3xl font-extrabold text-gray-900">{title}</h2>
+          <h2
+            className={`${
+              isSubSection ? "text-2xl" : "text-3xl"
+            } font-extrabold text-gray-900`}
+          >
+            {title}
+          </h2>
           <p className="text-gray-500 mt-1">{desc}</p>
         </div>
         <div className="hidden md:flex gap-1">
@@ -68,10 +76,47 @@ const SectionRow = ({
   );
 };
 
+// --- 구독 섹션 컴포넌트 ---
+const SubscriptionSection = ({
+  xboxDeals,
+  eaPlayDeals,
+}: {
+  xboxDeals: Deal[];
+  eaPlayDeals: Deal[];
+}) => {
+  return (
+    <section className="mb-16 pt-20 -mt-20">
+      <div className="mb-8 border-b border-gray-200 pb-4">
+        <h2 className="text-3xl font-extrabold text-gray-900">
+          구독 서비스 섹션
+        </h2>
+        <p className="text-gray-500 mt-1">
+          Xbox Game Pass와 EA Play의 전체 카탈로그를 확인하세요.
+        </p>
+      </div>
+      <div className="space-y-12">
+        <SectionRow
+          title="🎮 Xbox Game Pass 카탈로그"
+          desc="Xbox Game Pass 구독형 게임 리스트입니다."
+          deals={xboxDeals}
+          isSubSection={true}
+        />
+        <SectionRow
+          title="🎯 EA Play 카탈로그"
+          desc="EA Play 및 EA Play Pro 구독 게임 리스트입니다."
+          deals={eaPlayDeals}
+          isSubSection={true}
+        />
+      </div>
+    </section>
+  );
+};
+
 // --- 메인 페이지 ---
 export default function Home() {
   const [freeDeals, setFreeDeals] = useState<Deal[]>([]);
-  const [subDeals, setSubDeals] = useState<Deal[]>([]);
+  const [xboxDeals, setXboxDeals] = useState<Deal[]>([]);
+  const [eaPlayDeals, setEAPlayDeals] = useState<Deal[]>([]);
   const [saleDeals, setSaleDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -79,15 +124,24 @@ export default function Home() {
     const loadAllData = async () => {
       setLoading(true);
       try {
-        // [수정 핵심] API 호출 시 인자를 (카테고리, 옵션) 순서로 분리하여 전달
-        const [freeData, subData, saleData] = await Promise.all([
+        // Fetch all deals including both Xbox and EA Play
+        const [freeData, allSubData, saleData] = await Promise.all([
           fetchDeals("free", { limit: 10 }),
-          fetchDeals("sub", { limit: 10 }),
+          fetchDeals("sub", { limit: 1000 }), // Fetch all subscription deals
           fetchDeals("sale", { limit: 10 }),
         ]);
 
         setFreeDeals(freeData);
-        setSubDeals(subData);
+
+        // Split subscription deals by service type
+        const xbox = allSubData.filter((d) => d.deal_type === "GamePass");
+        const eaPlay = allSubData.filter(
+          (d) => d.deal_type === "Subscription"
+        );
+
+
+        setXboxDeals(xbox.slice(0, 10));
+        setEAPlayDeals(eaPlay.slice(0, 10));
         setSaleDeals(saleData);
       } catch (error) {
         console.error("데이터 로드 실패:", error);
@@ -118,14 +172,14 @@ export default function Home() {
               desc="놓치면 후회할 역대급 할인 정보를 모았습니다."
               deals={saleDeals}
             />
-            <SectionRow
-              title="🎮 구독 서비스 카탈로그"
-              desc="Xbox Game Pass 등 구독형 게임 리스트입니다."
-              deals={subDeals}
+            <SubscriptionSection
+              xboxDeals={xboxDeals}
+              eaPlayDeals={eaPlayDeals}
             />
 
             {freeDeals.length === 0 &&
-              subDeals.length === 0 &&
+              xboxDeals.length === 0 &&
+              eaPlayDeals.length === 0 &&
               saleDeals.length === 0 && (
                 <div className="text-center py-32">
                   <p className="text-gray-500 text-lg">
