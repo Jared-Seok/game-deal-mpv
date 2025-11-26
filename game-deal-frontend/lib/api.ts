@@ -36,10 +36,10 @@ export interface Deal {
   image_url: string;
   end_date: string | null;
   is_active: boolean;
-  epic_meta?: EpicMetadata;
-  xbox_meta?: XboxMetadata;
-  steam_meta?: SteamMetadata;
-  ubi_meta?: UbisoftMetadata;
+  epicMeta?: EpicMetadata;
+  xboxMeta?: XboxMetadata;
+  steamMeta?: SteamMetadata;
+  ubiMeta?: UbisoftMetadata;
 }
 
 // 백엔드 응답 구조 타입 정의

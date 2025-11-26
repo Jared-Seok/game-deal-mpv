@@ -1,18 +1,25 @@
 # game-deal-tracker/crawlers/steam_crawler.py
 
+import sys
+import os
+
+# [핵심 수정] 현재 스크립트(crawlers/)의 부모 디렉터리(game-deal-tracker/)를 경로에 추가
+# 이를 통해 'config'와 'db' 모듈을 불러올 수 있게 됩니다.
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import requests
 import re
 import time
 from datetime import datetime
 from bs4 import BeautifulSoup
+from typing import List # 사용하지 않는 Dict, Set, Tuple 제거됨
+
+# 이제 경로가 추가되었으므로 정상적으로 import 됩니다.
 from config.database import get_db_context 
 from db.models import Deal, SteamMetadata 
 from db.crud import upsert_deal 
-from typing import List, Dict, Set, Tuple
 
 # 스팀 검색 API 엔드포인트
-# specials=1 (할인 상품), cc=kr (한국 기준), l=koreana (언어 설정)
-# count=1은 초기 총 개수 파악을 위함
 STEAM_SEARCH_URL = "https://store.steampowered.com/search/results/?query&start={start}&count=100&dynamic_data=&sort_by=_ASC&snr=1_7_7_151_7&infinite=1&specials=1&cc=kr&l=koreana"
 STEAM_COUNT_URL = "https://store.steampowered.com/search/results/?query&start=0&count=1&dynamic_data=&sort_by=_ASC&snr=1_7_7_151_7&infinite=1&specials=1&cc=kr&l=koreana"
 
@@ -27,14 +34,12 @@ def get_total_sales_count() -> int:
         response = requests.get(STEAM_COUNT_URL, headers=HEADERS)
         response.raise_for_status()
         
-        # JSON 디코딩 시도
         try:
             data = response.json()
         except requests.exceptions.JSONDecodeError:
             print("  - WARNING: Initial API call returned non-JSON. Possible temporary block. Returning 0.")
             return 0
         
-        # total_count 필드에서 총 개수 추출
         return data.get('total_count', 0)
         
     except requests.exceptions.RequestException as e:
@@ -96,7 +101,7 @@ def fetch_steam_sales(limit=300) -> List[dict]:
     return all_deals[:actual_limit]
 
 def parse_steam_row(row):
-    """HTML 행 하나에서 게임 정보를 추출하고, deal_data와 meta_data로 분리합니다. (파싱 로직 수정됨)"""
+    """HTML 행 하나에서 게임 정보를 추출하고, deal_data와 meta_data로 분리합니다."""
     title = "Unknown Title"
     try:
         title_tag = row.select_one('span.title')
@@ -113,24 +118,20 @@ def parse_steam_row(row):
         img_tag = row.select_one('div.search_capsule img')
         image_url = img_tag['src'].replace("capsule_231x87", "header") if img_tag and img_tag.get('src') else None
 
-        # --- 🚨 [핵심 수정: 가격 요소 선택자 변경] ---
+        # 가격 요소 추출
         discount_block = row.select_one('.discount_block.search_discount_block')
         
         if not discount_block: return None 
 
         discount_rate = int(discount_block.get('data-discount', '0'))
         
-        # 1. 정가: .discount_original_price 클래스 사용 (strike 태그 대신)
         original_price_tag = discount_block.select_one('.discount_original_price')
-        
-        # 2. 할인가: .discount_final_price 클래스 사용
         final_price_tag = discount_block.select_one('.discount_final_price')
-
 
         if not original_price_tag or not final_price_tag:
              return None
 
-        # 가격 숫자 변환 로직 (₩ 및 , 제거)
+        # 가격 숫자 변환 로직
         try:
             regular_price_text = original_price_tag.get_text(strip=True)
             regular_price = float(re.sub(r'[^\d.]', '', regular_price_text.replace(',', '')))
@@ -141,19 +142,24 @@ def parse_steam_row(row):
         except ValueError:
             return None
         
-        # 리뷰 정보 추출
-        review_summary, positive_percent, total_reviews = "", 0, 0
+        # 리뷰 정보 파싱 로직 (한국어/영어 호환)
+        review_summary, positive_percent, total_reviews = "평가 없음", 0, 0
         review_span = row.select_one('span.search_review_summary')
+        
         if review_span:
             tooltip = review_span.get('data-tooltip-html', '')
+            
             review_parts = tooltip.split('<br>')
             if len(review_parts) > 0:
-                review_summary = review_parts[0]
-                
-            match = re.search(r'(\d+)%[^0-9]+([\d,]+)', tooltip)
-            if match:
-                positive_percent = int(match.group(1))
-                total_reviews = int(match.group(2).replace(',', ''))
+                review_summary = review_parts[0].strip()
+            
+            percent_match = re.search(r'(\d+)%', tooltip)
+            if percent_match:
+                positive_percent = int(percent_match.group(1))
+            
+            count_match = re.search(r'([\d,]+)(?:개|건| user reviews)', tooltip)
+            if count_match:
+                total_reviews = int(count_match.group(1).replace(',', ''))
         
         return {
             "deal_data": { 

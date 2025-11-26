@@ -14,28 +14,23 @@ interface DealCardProps {
 }
 
 export default function DealCard({ deal, className = "" }: DealCardProps) {
-  // 1. [최우선] 무료 배포 게임인지 확인
-  // 🚨 [수정 2] deal.epicMeta -> deal.epic_meta 로 속성명 통일
-  const isFreeGame =
-    deal.deal_type === "Free" ||
-    (deal.sale_price === 0 && deal.deal_type !== "GamePass") ||
-    deal.epic_meta?.is_free_to_keep === true; // <- epic_meta로 변경
+  // deal_type을 최우선으로 체크 (DB에서 명시적으로 설정된 값)
 
-  if (isFreeGame) {
-    return <FreeDealCard deal={deal} className={className} />;
-  }
-
-  // 2. [차순위] 구독 서비스(GamePass) 확인
-  // 🚨 [수정 3] deal.xboxMeta -> deal.xbox_meta 로 속성명 통일
-  const isGamePass =
-    deal.deal_type === "GamePass" ||
-    deal.platform.includes("Xbox") ||
-    deal.xbox_meta !== undefined; // <- xbox_meta로 변경
-
-  if (isGamePass) {
+  // 1. GamePass 구독 서비스 확인
+  if (deal.deal_type === "GamePass") {
     return <SubDealCard deal={deal} className={className} />;
   }
 
-  // 3. [기본] 일반 할인 게임
+  // 2. 무료 배포 게임 확인
+  if (deal.deal_type === "Free") {
+    return <FreeDealCard deal={deal} className={className} />;
+  }
+
+  // 3. 할인 게임 확인 (Sale 타입 또는 할인율이 있는 경우)
+  if (deal.deal_type === "Sale" || deal.discount_rate > 0) {
+    return <SaleDealCard deal={deal} className={className} />;
+  }
+
+  // 4. 기타 경우 (폴백)
   return <SaleDealCard deal={deal} className={className} />;
 }

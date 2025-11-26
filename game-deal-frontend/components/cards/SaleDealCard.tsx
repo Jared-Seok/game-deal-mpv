@@ -1,6 +1,9 @@
 // game-deal-frontend/components/cards/SaleDealCard.tsx
 
-import Link from "next/link";
+"use client";
+
+import { useState, useEffect } from "react";
+import Image from "next/image";
 import { formatPrice } from "@/lib/utils";
 
 interface DealProps {
@@ -13,7 +16,7 @@ interface DealProps {
   discount_rate: number;
   image_url: string;
   end_date: string | null;
-  steam_meta?: {
+  steamMeta?: {
     review_summary: string;
     positive_review_percent: number;
     total_reviews: number;
@@ -27,85 +30,140 @@ interface SaleDealCardProps {
 }
 
 const SaleDealCard = ({ deal, className = "" }: SaleDealCardProps) => {
-  // <- props 구조 분해 할당 수정
   const isSteam = deal.platform === "Steam";
 
-  // 할인 종료일자 포맷 함수 (생략)
+  // Steam 게임인 경우 steam_logo.jpg를 placeholder로 사용
+  const placeholderImage = isSteam
+    ? "/images/steam_logo.jpg"
+    : "/images/default_thumbnail.png";
+
+  const [imgSrc, setImgSrc] = useState(
+    deal.image_url || placeholderImage
+  );
+
+  useEffect(() => {
+    setImgSrc(deal.image_url || placeholderImage);
+  }, [deal.image_url, placeholderImage]);
+
+  const handleImageError = () => {
+    setImgSrc(placeholderImage);
+  };
+
+  // 할인 종료일자 포맷 함수
   const formatEndDate = (dateStr: string | null) => {
-    if (!dateStr) return "종료일 미정";
+    if (!dateStr) return null;
     try {
       const date = new Date(dateStr);
       return date.toLocaleDateString("ko-KR", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
       });
     } catch {
-      return "날짜 형식 오류";
+      return null;
     }
   };
 
-  // 리뷰 점수 텍스트 포맷 함수 (생략)
-  const getReviewText = (meta: DealProps["steam_meta"]) => {
-    if (!meta || meta.total_reviews === 0) return "리뷰 정보 없음";
-    return `${meta.positive_review_percent}% - ${
-      meta.review_summary
-    } (${formatPrice(meta.total_reviews)}개)`;
+  // 리뷰 점수 텍스트 포맷 함수
+  const getReviewText = (meta: DealProps["steamMeta"]) => {
+    if (!meta || meta.total_reviews === 0) return null;
+    return `${meta.positive_review_percent}% - ${meta.review_summary} (${formatPrice(
+      meta.total_reviews
+    )}개)`;
+  };
+
+  // 할인율에 따른 뱃지 색상 결정
+  const getDiscountBadgeColor = (rate: number) => {
+    if (rate >= 75) return "bg-purple-600";
+    if (rate >= 50) return "bg-red-600";
+    if (rate >= 25) return "bg-orange-500";
+    return "bg-blue-500";
   };
 
   return (
-    // 🚨 [수정 2] 최상위 div에 className을 적용하여 DealCard로부터 받은 스타일을 사용합니다.
     <div
-      className={`flex flex-col h-full bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform duration-300 hover:shadow-xl ${className}`}
+      className={`block group bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col h-full ${className}`}
     >
-      <div className="relative h-40">
-        <img
-          src={deal.image_url}
-          alt={deal.title}
-          className="w-full h-full object-cover"
-        />
-        <span className="absolute top-2 right-2 bg-red-600 text-white text-sm font-bold px-3 py-1 rounded-full">
-          -{deal.discount_rate}%
-        </span>
-      </div>
+      <a
+        href={deal.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex flex-col h-full"
+      >
+        {/* 이미지 영역 */}
+        <div className="relative w-full aspect-video bg-gray-200 overflow-hidden">
+          <Image
+            src={imgSrc}
+            alt={deal.title}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={handleImageError}
+            unoptimized
+          />
 
-      <div className="p-4 flex flex-col flex-grow">
-        <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white line-clamp-2">
-          {deal.title}
-        </h3>
-
-        <div className="mb-3">
-          <p className="text-sm text-gray-500 dark:text-gray-400 line-through">
-            정가: ₩{formatPrice(deal.regular_price)}
-          </p>
-          <p className="text-2xl font-extrabold text-green-500">
-            ₩{formatPrice(deal.sale_price)}
-          </p>
-        </div>
-
-        {isSteam && (
-          <div className="mb-3 text-sm text-gray-600 dark:text-gray-300">
-            <span className="font-semibold text-blue-500">유저 리뷰: </span>
-            {getReviewText(deal.steam_meta)}
+          {/* 플랫폼 뱃지 (좌측 상단) */}
+          <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide z-10">
+            {deal.platform}
           </div>
-        )}
 
-        <div className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-          <span className="font-semibold text-red-500">종료일: </span>
-          {formatEndDate(deal.end_date)}
-        </div>
-
-        <div className="mt-auto">
-          <Link
-            href={deal.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200"
+          {/* 할인율 뱃지 (우측 상단) */}
+          <div
+            className={`absolute top-2 right-2 ${getDiscountBadgeColor(
+              deal.discount_rate
+            )} text-white text-sm font-bold px-3 py-1 rounded-full shadow-lg z-10`}
           >
-            {deal.platform} 페이지 바로가기
-          </Link>
+            -{deal.discount_rate}%
+          </div>
         </div>
-      </div>
+
+        {/* 텍스트 정보 영역 */}
+        <div className="p-3 flex flex-col flex-grow">
+          {/* 타이틀 */}
+          <h3 className="text-sm font-bold text-gray-900 leading-tight line-clamp-2 mb-3 group-hover:text-red-600 transition-colors">
+            {deal.title}
+          </h3>
+
+          {/* Steam 리뷰 */}
+          {isSteam && deal.steamMeta && getReviewText(deal.steamMeta) && (
+            <div className="mb-2 text-xs text-gray-600 bg-blue-50 px-2 py-1 rounded">
+              <span className="font-semibold text-blue-600">리뷰: </span>
+              {getReviewText(deal.steamMeta)}
+            </div>
+          )}
+
+          <div className="mt-auto">
+            {/* 가격 정보 */}
+            <div className="mb-2">
+              <div className="flex items-baseline gap-2 mb-1">
+                <span className="text-xs text-gray-400 line-through">
+                  ₩{formatPrice(deal.regular_price)}
+                </span>
+                <span className="text-red-600 font-bold text-xs bg-red-50 px-1.5 py-0.5 rounded">
+                  {deal.discount_rate}% 할인
+                </span>
+              </div>
+              <div className="text-xl font-extrabold text-green-600">
+                ₩{formatPrice(deal.sale_price)}
+              </div>
+            </div>
+
+            {/* 종료일 */}
+            {deal.end_date && formatEndDate(deal.end_date) && (
+              <div className="text-[10px] text-gray-500 mb-2">
+                <span className="font-semibold text-red-500">할인 종료: </span>
+                {formatEndDate(deal.end_date)}
+              </div>
+            )}
+
+            {/* 버튼 */}
+            <div className="w-full text-center bg-red-50 group-hover:bg-red-100 text-red-700 text-xs font-bold py-2.5 rounded transition-colors">
+              할인가로 구매하기
+            </div>
+          </div>
+        </div>
+      </a>
     </div>
   );
 };
