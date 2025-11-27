@@ -5,32 +5,23 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { formatPrice } from "@/lib/utils";
-
-interface DealProps {
-  id: number;
-  platform: string;
-  title: string;
-  url: string;
-  regular_price: number;
-  sale_price: number;
-  discount_rate: number;
-  image_url: string;
-  end_date: string | null;
-  steamMeta?: {
-    review_summary: string;
-    positive_review_percent: number;
-    total_reviews: number;
-  };
-}
+import { Deal, SteamMetadata } from "@/lib/api";
 
 // 🚨 [수정 1] DealProps 외에 className을 받도록 타입을 정의합니다.
 interface SaleDealCardProps {
-  deal: DealProps;
+  deal: Deal;
   className?: string; // <- 이 부분을 추가/확인합니다.
 }
 
 const SaleDealCard = ({ deal, className = "" }: SaleDealCardProps) => {
   const isSteam = deal.platform === "Steam";
+
+  // Debug: Check if Steam metadata exists
+  if (isSteam && !deal.steamMeta) {
+    console.log("⚠️ Steam game without metadata:", deal.title);
+  } else if (isSteam && deal.steamMeta) {
+    console.log("✓ Steam game with metadata:", deal.title, deal.steamMeta);
+  }
 
   // Steam 게임인 경우 steam_logo.jpg를 placeholder로 사용
   const placeholderImage = isSteam
@@ -67,11 +58,18 @@ const SaleDealCard = ({ deal, className = "" }: SaleDealCardProps) => {
   };
 
   // 리뷰 점수 텍스트 포맷 함수
-  const getReviewText = (meta: DealProps["steamMeta"]) => {
+  const getReviewText = (meta: SteamMetadata | undefined) => {
     if (!meta || meta.total_reviews === 0) return null;
-    return `${meta.positive_review_percent}% - ${meta.review_summary} (${formatPrice(
-      meta.total_reviews
-    )}개)`;
+    return `${meta.review_summary}`;
+  };
+
+  // 리뷰 점수에 따른 색상 결정 (Steam 스타일)
+  const getReviewColor = (percent: number) => {
+    if (percent >= 95) return "text-[#66C0F4]"; // Overwhelmingly Positive (Steam blue)
+    if (percent >= 80) return "text-[#66C0F4]"; // Very Positive
+    if (percent >= 70) return "text-[#66C0F4]"; // Positive
+    if (percent >= 40) return "text-[#B9A074]"; // Mixed (tan/brown)
+    return "text-[#CD5C5C]"; // Negative (red)
   };
 
   // 할인율에 따른 뱃지 색상 결정
@@ -127,9 +125,20 @@ const SaleDealCard = ({ deal, className = "" }: SaleDealCardProps) => {
 
           {/* Steam 리뷰 */}
           {isSteam && deal.steamMeta && getReviewText(deal.steamMeta) && (
-            <div className="mb-2 text-xs text-gray-600 bg-blue-50 px-2 py-1 rounded">
-              <span className="font-semibold text-blue-600">리뷰: </span>
-              {getReviewText(deal.steamMeta)}
+            <div className="mb-2 text-xs bg-[#1B2838] px-2 py-1.5 rounded flex items-center gap-2">
+              <span className="text-gray-400 text-[10px]">
+                👍 {deal.steamMeta.positive_review_percent}%
+              </span>
+              <span
+                className={`font-semibold ${getReviewColor(
+                  deal.steamMeta.positive_review_percent
+                )}`}
+              >
+                {getReviewText(deal.steamMeta)}
+              </span>
+              <span className="text-gray-500 text-[10px]">
+                ({formatPrice(deal.steamMeta.total_reviews)})
+              </span>
             </div>
           )}
 
@@ -144,7 +153,7 @@ const SaleDealCard = ({ deal, className = "" }: SaleDealCardProps) => {
                   {deal.discount_rate}% 할인
                 </span>
               </div>
-              <div className="text-xl font-extrabold text-green-600">
+              <div className="text-xl font-extrabold text-[#2a475e]">
                 ₩{formatPrice(deal.sale_price)}
               </div>
             </div>

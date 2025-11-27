@@ -51,43 +51,71 @@ export interface Deal {
 }
 
 // 백엔드 응답 구조 타입 정의
+export interface ApiResponseMeta {
+  totalItems: number;
+  totalPages: number;
+  currentPage: number;
+  itemsPerPage: number;
+}
+
 interface ApiResponse {
-  meta: any;
+  meta: ApiResponseMeta;
   data: Deal[];
 }
 
 export interface FetchDealsOptions {
   limit?: number;
-  include_meta?: "true" | "false" | string;
+  page?: number;
+  sort?: string;
+  search?: string;
+  min_reviews?: number; // 최소 리뷰 수 필터링 옵션 추가
 }
 
 export async function fetchDeals(
   category: string,
   options: FetchDealsOptions = {}
-): Promise<Deal[]> {
-  // [핵심 수정] category를 소문자로 강제 변환하여 전송
+): Promise<{ deals: Deal[]; meta: ApiResponseMeta }> {
   const safeCategory = category ? category.toLowerCase().trim() : "";
 
-  const params = new URLSearchParams({
+  const params: Record<string, string> = {
     type: safeCategory,
-    limit: options.limit ? options.limit.toString() : "1000",
-    include_meta: options.include_meta || "false",
-  });
+    limit: options.limit ? options.limit.toString() : "20",
+  };
 
-  const url = `${API_BASE_URL}/deals?${params.toString()}`;
+  if (options.sort) {
+    params.sort = options.sort;
+  }
+  if (options.page) {
+    params.page = options.page.toString();
+  }
+  if (options.search) {
+    params.search = options.search;
+  }
+  // min_reviews 옵션이 있으면 파라미터에 추가
+  if (options.min_reviews) {
+    params.min_reviews = options.min_reviews.toString();
+  }
+
+  const url = `${API_BASE_URL}/deals?${new URLSearchParams(params).toString()}`;
 
   try {
-    // 캐시 문제 방지를 위해 revalidate 시간 조정 및 no-store 옵션 고려 가능
-    const response = await fetch(url, { next: { revalidate: 0 } }); // 즉시 반영을 위해 0으로 설정 (테스트용)
+    const response = await fetch(url, { next: { revalidate: 0 } });
 
     if (!response.ok) {
       throw new Error(`API 요청 실패: ${response.statusText}`);
     }
 
     const jsonResponse: ApiResponse = await response.json();
-    return jsonResponse.data || [];
+    // 데이터와 메타 정보를 함께 반환
+    return {
+      deals: jsonResponse.data || [],
+      meta: jsonResponse.meta || { totalItems: 0, totalPages: 0, currentPage: 1, itemsPerPage: 20 },
+    };
   } catch (error) {
     console.error("Fetch deals error:", error);
-    return [];
+    return {
+      deals: [],
+      meta: { totalItems: 0, totalPages: 0, currentPage: 1, itemsPerPage: 20 },
+    };
   }
 }

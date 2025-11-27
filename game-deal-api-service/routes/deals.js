@@ -19,31 +19,39 @@ router.get("/", async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
 
-    // 1. 쿼리 파라미터 가져오기 (type을 소문자로 변환하여 안전하게 처리)
+    // 1. 쿼리 파라미터 가져오기
     const rawType = req.query.type || "";
-    const type = rawType.toLowerCase().trim(); // "Free " -> "free"
-    const { platform, search } = req.query;
+    const type = rawType.toLowerCase().trim();
+    const { platform, search, sort, min_reviews } = req.query; // 'min_reviews' 파라미터 추가
 
     // 기본 조건: 활성화된 딜만 조회
     const whereCondition = {
       is_active: true,
     };
 
+    // SteamMetadata에 대한 옵션을 동적으로 구성
+    const steamMetaInclude = {
+      model: SteamMetadata,
+      as: "steamMeta",
+      required: false, // 기본값은 false
+    };
+
+    if (type === "sale" && min_reviews) {
+      steamMetaInclude.where = {
+        total_reviews: { [Op.gte]: parseInt(min_reviews) },
+      };
+      steamMetaInclude.required = true; // [FIX] INNER JOIN으로 변경하여 조건에 맞는 deal만 가져옴
+    }
+
     // 2. [핵심 수정] 딜 유형 필터링 로직 강화
-    // 입력값이 매칭되지 않으면 필터가 무시되어 전체가 조회되는 것을 방지
     if (type) {
       if (type === "sub" || type === "gamepass" || type === "subscription") {
-        // 구독 서비스 (Xbox Game Pass와 EA Play 포함)
         whereCondition.deal_type = { [Op.in]: ["GamePass", "Subscription"] };
       } else if (type === "free") {
-        // 무료 배포
         whereCondition.deal_type = "Free";
       } else if (type === "sale") {
-        // 일반 할인
         whereCondition.deal_type = "Sale";
       } else {
-        // [중요] 이상한 type이 들어오면 아무것도 조회되지 않게 막거나, 에러 처리가 필요함
-        // 현재는 안전하게 빈 결과를 반환하도록 설정 (원치 않는 전체 노출 방지)
         return res.json({
           meta: { totalItems: 0, totalPages: 0, currentPage: page },
           data: [],
@@ -63,19 +71,34 @@ router.get("/", async (req, res) => {
       };
     }
 
+    // 5. 정렬(Sorting) 로직 추가
+    let order = [
+      ["updatedAt", "DESC"],
+      ["id", "DESC"],
+    ];
+
+    if (sort) {
+      if (sort === "discount") {
+        order = [["discount_rate", "DESC"]];
+      } else if (sort === "reviews") {
+        order = [["steamMeta", "total_reviews", "DESC"]];
+      } else if (sort === "positive") {
+        order = [["steamMeta", "positive_review_percent", "DESC"]];
+      } else if (sort === "az") {
+        order = [["title", "ASC"]];
+      }
+    }
+
     // 데이터 조회
     const { count, rows } = await Deal.findAndCountAll({
       where: whereCondition,
       limit: limit,
       offset: offset,
-      order: [
-        ["updatedAt", "DESC"],
-        ["id", "DESC"],
-      ],
+      order: order, // 동적으로 생성된 정렬 조건 적용
       include: [
         { model: XboxMetadata, as: "xboxMeta", required: false },
         { model: EpicMetadata, as: "epicMeta", required: false },
-        { model: SteamMetadata, as: "steamMeta", required: false },
+        steamMetaInclude, // 동적으로 구성된 SteamMetadata include 적용
         { model: UbisoftMetadata, as: "ubiMeta", required: false },
         { model: EAPlayMetadata, as: "eaPlayMeta", required: false },
       ],

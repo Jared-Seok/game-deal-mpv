@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link"; // Link 컴포넌트 import
 // Deal 타입과 fetchDeals 함수 import
 import { fetchDeals, Deal } from "../lib/api";
 import DealCard from "../components/DealCard";
@@ -124,25 +125,26 @@ export default function Home() {
     const loadAllData = async () => {
       setLoading(true);
       try {
-        // Fetch all deals including both Xbox and EA Play
-        const [freeData, allSubData, saleData] = await Promise.all([
+        // [FIX] fetchDeals가 객체를 반환하므로, 각 결과에서 deals 속성을 추출합니다.
+        const [freeResult, subResult, saleResult] = await Promise.all([
           fetchDeals("free", { limit: 10 }),
           fetchDeals("sub", { limit: 1000 }), // Fetch all subscription deals
-          fetchDeals("sale", { limit: 10, include_meta: "true" }),
+          fetchDeals("sale", { limit: 10, sort: "reviews", min_reviews: 100 }), // 리뷰 많은 순으로 10개, 최소 리뷰 100개 필터링
         ]);
 
-        setFreeDeals(freeData);
+        setFreeDeals(freeResult.deals);
+        setSaleDeals(saleResult.deals);
 
-        // Split subscription deals by service type
+        // Split subscription deals by service type from the correct array
+        const allSubData = subResult.deals;
         const xbox = allSubData.filter((d) => d.deal_type === "GamePass");
         const eaPlay = allSubData.filter(
           (d) => d.deal_type === "Subscription"
         );
 
-
         setXboxDeals(xbox.slice(0, 10));
         setEAPlayDeals(eaPlay.slice(0, 10));
-        setSaleDeals(saleData);
+
       } catch (error) {
         console.error("데이터 로드 실패:", error);
       } finally {
@@ -172,6 +174,16 @@ export default function Home() {
               desc="놓치면 후회할 역대급 할인 정보를 모았습니다."
               deals={saleDeals}
             />
+            {/* "더보기" 버튼 추가 */}
+            <div className="text-center -mt-8 mb-16">
+              <Link
+                href="/deals/sale"
+                className="inline-block bg-white text-gray-700 font-semibold py-2 px-6 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                스팀 세일 게임 더보기
+              </Link>
+            </div>
+
             <SubscriptionSection
               xboxDeals={xboxDeals}
               eaPlayDeals={eaPlayDeals}
